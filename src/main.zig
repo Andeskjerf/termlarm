@@ -56,7 +56,7 @@ pub fn main(init: std.process.Init) !void {
     var writer = stdout.writer(io, out_buffer);
 
     const win_size: std.posix.winsize = getTermSize();
-    const world_size: Vec2f = .{ .y = win_size.row, .x = win_size.col / 2 };
+    const world_size: Vec2f = .{ .y = win_size.row, .x = @as(f32, @floatFromInt(win_size.col)) / 2.0 };
 
     var output = try std.ArrayList(u8).initCapacity(allocator, win_size.row * win_size.col);
     _ = try output.addManyAt(allocator, 0, win_size.row * win_size.col);
