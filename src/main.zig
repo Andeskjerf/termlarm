@@ -10,11 +10,6 @@ const MAX_DEGREES = 360;
 const SPACE = 32;
 const NUMBER_SIGN = 35;
 
-const Vec2i = struct {
-    y: i32,
-    x: i32,
-};
-
 const Vec2f = struct {
     y: f32,
     x: f32,
@@ -183,6 +178,11 @@ fn getTermSize() std.posix.winsize {
     return winsize;
 }
 
+// order of operations:
+// 1. calculate points of primitive
+// 2. do any transformations to these points
+// 3. rasterize into array of points
+// 4. transfer rasterization onto draw buffer
 fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
     while (shape.next()) |p| {
         const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
