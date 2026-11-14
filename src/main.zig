@@ -22,7 +22,7 @@ pub fn main(_: std.process.Init) !void {
     }
 }
 
-fn circle(buffer: *[output_y][output_x]u8, size: comptime_int, pos_y: i32, pos_x: i32) void {
+fn circle(buffer: *[output_y][output_x]u8, size: i32, pos_y: i32, pos_x: i32) void {
     const max_y = size;
     const max_x = size * 2;
 
