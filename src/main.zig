@@ -25,7 +25,7 @@ const Circle = struct {
     step: i32,
 
     pub fn next(self: *Circle) ?Vec2f {
-        const target_step = 15;
+        const target_step = 50;
         if (self.step >= target_step) return null;
 
         const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(target_step)) * PI2;
@@ -245,8 +245,6 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
             if (isWithinBounds(rpp.y, winsize.row) and isWithinBounds(rpp.x, winsize.col))
                 buffer[@as(usize, @intCast(rpp.y * winsize.col + rpp.x))] = NUMBER_SIGN;
         }
-
-        if (pp2.x == first_point.x and pp2.y == first_point.y) break;
     }
 }
 
