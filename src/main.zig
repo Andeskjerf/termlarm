@@ -15,7 +15,7 @@ const output_x = output_y * 2;
 
 pub fn main(_: std.process.Init) !void {
     var output: [output_y][output_x]u8 = @splat(@splat(SPACE));
-    circle(&output, 10);
+    circle(&output, 40, output_y / 2, output_x / 2);
 
     for (&output) |*y| {
         for (y) |x| {
@@ -25,17 +25,18 @@ pub fn main(_: std.process.Init) !void {
     }
 }
 
-fn circle(buffer: *[output_y][output_x]u8, size: comptime_int) void {
+fn circle(buffer: *[output_y][output_x]u8, size: comptime_int, pos_y: i32, pos_x: i32) void {
     const max_y = size;
     const max_x = size * 2;
 
     var i: i16 = 0;
+    // TODO: separate steps from degrees
     const steps = MAX_DEGREES;
     while (i < steps) {
         const radi = degrees_to_radian(@floatFromInt(i));
 
-        const x: usize = calculate_position(std.math.sin(radi), max_x - 1);
-        const y: usize = calculate_position(std.math.cos(radi), max_y - 1);
+        const y: usize = apply_offset(calculate_position(std.math.cos(radi), max_y - 1), pos_y, max_y);
+        const x: usize = apply_offset(calculate_position(std.math.sin(radi), max_x - 1), pos_x, max_x);
 
         buffer[y][x] = NUMBER_SIGN;
 
@@ -51,6 +52,10 @@ fn calculate_position(value: f32, max: i32) usize {
     const half: f32 = @as(f32, @floatFromInt(max)) / 2.0;
     const pos = (value + 1.0) * half; // [0, max_x]
     return @intFromFloat(@round(pos));
+}
+
+fn apply_offset(value: usize, offset: i32, size: i32) usize {
+    return value + @as(usize, @intCast(offset - @divFloor(size, 2)));
 }
 
 test "degrees_to_radian gives correct degrees" {
