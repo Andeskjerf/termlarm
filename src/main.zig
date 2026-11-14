@@ -171,12 +171,6 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-fn getTermSize() std.posix.winsize {
-    var winsize: std.posix.winsize = undefined;
-    _ = std.os.linux.ioctl(std.Io.File.stdout().handle, std.os.linux.T.IOCGWINSZ, @intFromPtr(&winsize));
-    return winsize;
-}
-
 fn bresenham(buffer: []?Vec2i, start: Vec2i, end: Vec2i) void {
     const dx: i32 = @intCast(@abs(end.x - start.x));
     const dy: i32 = -@as(i32, @intCast(@abs(end.y - start.y)));
@@ -201,6 +195,10 @@ fn bresenham(buffer: []?Vec2i, start: Vec2i, end: Vec2i) void {
             y += sy;
         }
     }
+}
+
+fn isWithinBounds(value: i32, upper_limit: i32) bool {
+    return value < upper_limit and value >= 0;
 }
 
 // order of operations:
@@ -278,6 +276,8 @@ fn drawBufferToStdout(writer: *std.Io.File.Writer, buffer: []u8, winsize: std.po
     @memset(buffer[0 .. winsize.row * winsize.col], SPACE);
 }
 
-fn isWithinBounds(value: i32, upper_limit: i32) bool {
-    return value < upper_limit and value >= 0;
+fn getTermSize() std.posix.winsize {
+    var winsize: std.posix.winsize = undefined;
+    _ = std.os.linux.ioctl(std.Io.File.stdout().handle, std.os.linux.T.IOCGWINSZ, @intFromPtr(&winsize));
+    return winsize;
 }
