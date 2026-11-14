@@ -214,11 +214,9 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
     while (shape.next()) |p| : (i += 1) {
         // FIXME: a bit jittery...
         // seems like position rounds in a bad way?
-        const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
-        const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + shape.pos.x * 2.0)));
         points[i] = .{
-            .y = y,
-            .x = x,
+            .y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y))),
+            .x = @as(i32, @intFromFloat(@round(p.x * 2.0 + shape.pos.x * 2.0))),
         };
     }
     shape.reset();
