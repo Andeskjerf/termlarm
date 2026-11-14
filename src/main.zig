@@ -33,7 +33,10 @@ const Circle = struct {
         const x = std.math.sin(radi) * @as(f32, @floatFromInt(self.radius));
         self.step += 1;
 
-        return Vec2f{ .y = y, .x = x };
+        return Vec2f{
+            .y = y,
+            .x = x,
+        };
     }
 
     pub fn size(self: *Circle) f32 {
@@ -44,6 +47,33 @@ const Circle = struct {
         self.step = 0;
     }
 };
+
+const Line = struct {
+    x: f32,
+    length: f32,
+
+    pub fn next(self: *Line) ?Vec2f {
+        if (self.x >= self.length) return null;
+        const x = self.x - self.length / 2.0;
+        // FIXME: a bit hacky...
+        // ideally we should be able to iterate this only by 1
+        // but because the renderer draws everything on the X axis twice as wide, we will get gaps because we do not have enough points to draw a continous line
+        // the renderer draws the X axis twice as wide to compensate for uneven font size (tall, slim characters)
+        // ideally the renderer would interpolate and fill in the points inbetween, maybe?
+        // for now, set the increment to something low so we have enough points to draw
+        self.x += 0.5;
+        return .{
+            .y = 0.0,
+            .x = x,
+        };
+    }
+
+    pub fn reset(self: *Line) void {
+        self.x = 0.0;
+    }
+};
+
+fn Shape(comptime T: type) *T {}
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -56,15 +86,36 @@ pub fn main(init: std.process.Init) !void {
     var writer = stdout.writer(io, out_buffer);
 
     const win_size: std.posix.winsize = getTermSize();
-    const world_size: Vec2f = .{ .y = win_size.row, .x = @as(f32, @floatFromInt(win_size.col)) / 2.0 };
+    const world_size: Vec2f = .{
+        .y = win_size.row,
+        .x = @as(f32, @floatFromInt(win_size.col)) / 2.0,
+    };
 
     var output = try std.ArrayList(u8).initCapacity(allocator, win_size.row * win_size.col);
     _ = try output.addManyAt(allocator, 0, win_size.row * win_size.col);
     @memset(output.items[0 .. win_size.row * win_size.col], SPACE);
 
-    var circle: Circle = .{ .radius = 10, .step = 0 };
-    var circle_vec: Vec2f = .{ .y = 0.5, .x = 0.5 };
-    var circle_pos: Vec2f = .{ .y = world_size.y / 2.0, .x = world_size.x / 2.0 };
+    var circle: Circle = .{
+        .radius = 10,
+        .step = 0,
+    };
+    var circle_vec: Vec2f = .{
+        .y = 0.5,
+        .x = 0.5,
+    };
+    var circle_pos: Vec2f = .{
+        .y = world_size.y / 2.0,
+        .x = world_size.x / 2.0,
+    };
+
+    var line: Line = .{
+        .x = 0.0,
+        .length = 20.0,
+    };
+    const line_pos: Vec2f = .{
+        .y = world_size.y / 2.0,
+        .x = world_size.x / 2.0,
+    };
     const velocity = 1.5;
     while (true) {
         circle_pos.x += circle_vec.x * velocity;
@@ -77,6 +128,7 @@ pub fn main(init: std.process.Init) !void {
             circle_vec.y = -circle_vec.y;
         }
 
+        drawLineOntoBuffer(&line, output.items, line_pos, win_size);
         drawShapeOntoBuffer(&circle, output.items, circle_pos, win_size);
         try drawBufferToStdout(&writer, output.items, win_size);
 
@@ -94,7 +146,17 @@ fn drawShapeOntoBuffer(shape: *Circle, buffer: []u8, pos: Vec2f, winsize: std.po
     while (shape.next()) |p| {
         const y = @as(i32, @intFromFloat(@round(p.y + pos.y)));
         const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + pos.x * 2.0)));
-        if (is_within_bounds(y, winsize.row) and is_within_bounds(x, winsize.col))
+        if (isWithinBounds(y, winsize.row) and isWithinBounds(x, winsize.col))
+            buffer[@as(usize, @intCast(y * winsize.col + x))] = NUMBER_SIGN;
+    }
+    shape.reset();
+}
+
+fn drawLineOntoBuffer(shape: *Line, buffer: []u8, pos: Vec2f, winsize: std.posix.winsize) void {
+    while (shape.next()) |p| {
+        const y = @as(i32, @intFromFloat(@round(p.y + pos.y)));
+        const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + pos.x * 2.0)));
+        if (isWithinBounds(y, winsize.row) and isWithinBounds(x, winsize.col))
             buffer[@as(usize, @intCast(y * winsize.col + x))] = NUMBER_SIGN;
     }
     shape.reset();
@@ -116,6 +178,6 @@ fn drawBufferToStdout(writer: *std.Io.File.Writer, buffer: []u8, winsize: std.po
     @memset(buffer[0 .. winsize.row * winsize.col], SPACE);
 }
 
-fn is_within_bounds(value: i32, upper_limit: i32) bool {
+fn isWithinBounds(value: i32, upper_limit: i32) bool {
     return value < upper_limit and value >= 0;
 }
