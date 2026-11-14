@@ -34,13 +34,19 @@
             ];
             commands = [
               {
-                help = "Builds the current project";
+                help = "Build project";
                 name = "build";
                 command = "zig build";
+              }
+              {
+                help = "Run project";
+                name = "run";
+                command = "zig build run";
               }
             ];
             packages = [
               pkgs.zig
+              pkgs.ncurses
             ];
           };
         };
