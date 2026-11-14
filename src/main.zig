@@ -25,7 +25,7 @@ const Circle = struct {
     step: i32,
 
     pub fn next(self: *Circle) ?Vec2f {
-        const target_step = self.radius;
+        const target_step = 50;
         if (self.step >= target_step) return null;
 
         const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(target_step)) * PI2;
@@ -178,21 +178,28 @@ fn getTermSize() std.posix.winsize {
 }
 
 fn bresenham(buffer: []?Vec2i, start: Vec2i, end: Vec2i) void {
-    const m = 2 * (end.y - start.y);
-    var slope_error = m - (end.x - start.x);
+    const dx: i32 = @intCast(@abs(end.x - start.x));
+    const dy: i32 = -@as(i32, @intCast(@abs(end.y - start.y)));
+    const sx: i32 = if (start.x < end.x) 1 else -1;
+    const sy: i32 = if (start.y < end.y) 1 else -1;
+    var err = dx + dy;
 
-    var i: usize = 0;
     var x = start.x;
     var y = start.y;
-    while (x <= end.x) : (x += 1) {
-        buffer[i] = Vec2i{ .y = y, .x = x };
+    var i: usize = 0;
+    while (i < buffer.len) : (i += 1) {
+        buffer[i] = .{ .y = y, .x = x };
+        if (x == end.x and y == end.y) break;
 
-        slope_error += m;
-        if (slope_error >= 0) {
-            y += 1;
-            slope_error -= 2 * (end.x - start.x);
+        const e2 = 2 * err;
+        if (e2 >= dy) {
+            err += dy;
+            x += sx;
         }
-        i += 1;
+        if (e2 <= dx) {
+            err += dx;
+            y += sy;
+        }
     }
 }
 
@@ -202,7 +209,7 @@ fn bresenham(buffer: []?Vec2i, start: Vec2i, end: Vec2i) void {
 // 3. rasterize into array of points
 // 4. transfer rasterization onto draw buffer
 fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
-    var points: [1024]?Vec2i = @splat(null);
+    var points: [256]?Vec2i = @splat(null);
     var i: usize = 0;
     while (shape.next()) |p| : (i += 1) {
         const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
@@ -214,16 +221,16 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
     }
     shape.reset();
 
-    var rasterized_points: [64]?Vec2i = @splat(null);
+    var rasterized_points: [128]?Vec2i = @splat(null);
     for (points, 0..) |p, ii| {
-        @memset(rasterized_points[0..64], null);
-        const pp1 = p.?;
+        @memset(&rasterized_points, null);
+        const first_point = points[0] orelse break;
+        const pp1 = p orelse break;
         const p1: Vec2i = .{
             .y = pp1.y,
             .x = pp1.x,
         };
-        if (points[ii + 1] == null) break;
-        const pp2 = points[ii + 1].?;
+        const pp2 = points[ii + 1] orelse first_point;
         const p2: Vec2i = .{
             .y = pp2.y,
             .x = pp2.x,
@@ -231,11 +238,12 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
 
         bresenham(&rasterized_points, p1, p2);
         for (rasterized_points) |rp| {
-            if (rp == null) break;
-            const rpp = rp.?;
+            const rpp = rp orelse break;
             if (isWithinBounds(rpp.y, winsize.row) and isWithinBounds(rpp.x, winsize.col))
                 buffer[@as(usize, @intCast(rpp.y * winsize.col + rpp.x))] = NUMBER_SIGN;
         }
+
+        if (pp2.x == first_point.x and pp2.y == first_point.y) break;
     }
 }
 
