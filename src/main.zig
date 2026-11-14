@@ -55,10 +55,8 @@ pub fn main(init: std.process.Init) !void {
     const stdout = std.Io.File.stdout();
     var writer = stdout.writer(io, out_buffer);
 
-    var winsize: std.posix.winsize = undefined;
-    _ = std.os.linux.ioctl(stdout.handle, std.os.linux.T.IOCGWINSZ, @intFromPtr(&winsize));
+    const winsize: std.posix.winsize = getTermSize();
 
-    const draw_size: Vec2i = .{ .y = winsize.row, .x = winsize.col };
     var output = try std.ArrayList(u8).initCapacity(allocator, winsize.row * winsize.col);
     _ = try output.addManyAt(allocator, 0, winsize.row * winsize.col);
     @memset(output.items[0 .. winsize.row * winsize.col], SPACE);
@@ -78,30 +76,43 @@ pub fn main(init: std.process.Init) !void {
             circle_vec.y = -circle_vec.y;
         }
 
-        while (circle.next()) |p| {
-            const y = @as(i32, @intFromFloat(@round(p.y + circle_pos.y)));
-            const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + circle_pos.x)));
-            if (is_within_bounds(y, draw_size.y) and is_within_bounds(x, draw_size.x))
-                output.items[@as(usize, @intCast(y * draw_size.x + x))] = NUMBER_SIGN;
-        }
-        circle.reset();
-
-        try writer.interface.writeAll("\x1b[H");
-
-        var row: i32 = 0;
-        while (row < draw_size.y) {
-            const start_pos = @as(usize, @intCast(row * winsize.col));
-            const end_pos = @as(usize, @intCast(start_pos + winsize.col));
-
-            try writer.interface.print("{s}", .{output.items[start_pos..end_pos]});
-            row += 1;
-        }
-
-        try writer.interface.flush();
-        @memset(output.items[0 .. winsize.row * winsize.col], SPACE);
+        drawShapeOntoBuffer(&circle, output.items, circle_pos, winsize);
+        try drawBufferToStdout(&writer, output.items, winsize);
 
         try init.io.sleep(std.Io.Duration.fromMilliseconds(16), std.Io.Clock.real);
     }
+}
+
+fn getTermSize() std.posix.winsize {
+    var winsize: std.posix.winsize = undefined;
+    _ = std.os.linux.ioctl(std.Io.File.stdout().handle, std.os.linux.T.IOCGWINSZ, @intFromPtr(&winsize));
+    return winsize;
+}
+
+fn drawShapeOntoBuffer(shape: *Circle, buffer: []u8, pos: Vec2f, winsize: std.posix.winsize) void {
+    while (shape.next()) |p| {
+        const y = @as(i32, @intFromFloat(@round(p.y + pos.y)));
+        const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + pos.x)));
+        if (is_within_bounds(y, winsize.row) and is_within_bounds(x, winsize.col))
+            buffer[@as(usize, @intCast(y * winsize.col + x))] = NUMBER_SIGN;
+    }
+    shape.reset();
+}
+
+fn drawBufferToStdout(writer: *std.Io.File.Writer, buffer: []u8, winsize: std.posix.winsize) !void {
+    try writer.interface.writeAll("\x1b[H");
+
+    var row: i32 = 0;
+    while (row < winsize.row) {
+        const start_pos = @as(usize, @intCast(row * winsize.col));
+        const end_pos = @as(usize, @intCast(start_pos + winsize.col));
+
+        try writer.interface.print("{s}", .{buffer[start_pos..end_pos]});
+        row += 1;
+    }
+
+    try writer.interface.flush();
+    @memset(buffer[0 .. winsize.row * winsize.col], SPACE);
 }
 
 fn is_within_bounds(value: i32, upper_limit: i32) bool {
