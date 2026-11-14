@@ -10,29 +10,48 @@ const MAX_DEGREES = 360;
 const SPACE = 32;
 const NUMBER_SIGN = 35;
 
-const BUFFER_MAX_Y = 1024;
-const BUFFER_MAX_X = BUFFER_MAX_Y * 2;
-
 const Vec2 = struct {
     y: i32,
     x: i32,
 };
 
-pub fn main(_: std.process.Init) !void {
-    const draw_size: Vec2 = .{ .y = 50, .x = 50 * 2 };
+// 1. [x] move away from debug print, figure out how to print our circle that way
+// 2. [ ] rewrite circle function to return an array of points
+// 3. [ ] do transformations before drawing / moving to output buffer
+// 4. [ ] take these points and draw em
 
-    var output: [BUFFER_MAX_Y][BUFFER_MAX_X]u8 = @splat(@splat(SPACE));
-    draw_circle(&output, 40, .{ .y = draw_size.y / 2, .x = draw_size.x / 2 });
+pub fn main(init: std.process.Init) !void {
+    const io = init.io;
+    var arena = init.arena;
+    defer arena.deinit();
+    const allocator = arena.allocator();
 
-    for (&output, 0..) |*y, i| {
-        if (i >= draw_size.y) {
-            break;
-        }
-        std.debug.print("{s}\n", .{y[0..draw_size.x]});
+    const drawBuffer = try allocator.create([1024]u8);
+    var stdout = std.Io.File.stdout().writer(io, drawBuffer);
+
+    const drawSize: Vec2 = .{ .y = 50, .x = 50 * 2 };
+    const output = try allocator.create([drawSize.y * drawSize.x]u8);
+    @memset(output[0 .. drawSize.y * drawSize.x], SPACE);
+
+    draw_circle(output, 40, .{ .y = drawSize.y / 2, .x = drawSize.x / 2 });
+
+    var row: i32 = 0;
+    while (row < drawSize.y) {
+        const startPos = @as(usize, @intCast(row * drawSize.x));
+        const endPos = @as(usize, @intCast(startPos + drawSize.x));
+
+        try stdout.interface.print("{s}\n", .{output[startPos..endPos]});
+        row += 1;
     }
+    try stdout.interface.flush();
 }
 
-fn draw_circle(buffer: *[BUFFER_MAX_Y][BUFFER_MAX_X]u8, size: i32, pos: Vec2) void {
+// TODO: rewrite to instead return an array of coordinates
+// if it should return an array of coordinates, we need to size it according to some value...
+// how expensive is heap allocation really?
+// 1. allocate something on the heap for every circle we draw. that lets us create all our shapes before drawing
+// 2. reuse a buffer for storing each shape, then immediately transfer it to output buffer & clear shape buffer. this avoids allocating a buffer for each shape
+fn draw_circle(buffer: []u8, size: i32, pos: Vec2) void {
     const _size: Vec2 = .{ .y = size, .x = size * 2 };
 
     var i: i16 = 0;
@@ -41,11 +60,12 @@ fn draw_circle(buffer: *[BUFFER_MAX_Y][BUFFER_MAX_X]u8, size: i32, pos: Vec2) vo
     while (i < steps) {
         const radi = degrees_to_radian(@floatFromInt(i));
 
+        // should not deal with offsets in here, that is the responsibility of the canvas
         const y = apply_offset(calculate_position(std.math.cos(radi), _size.y - 1), pos.y, _size.y);
         const x = apply_offset(calculate_position(std.math.sin(radi), _size.x - 1), pos.x, _size.x);
 
-        if (is_within_bounds(y, BUFFER_MAX_Y) and is_within_bounds(x, BUFFER_MAX_X))
-            buffer[@as(usize, @intCast(y))][@as(usize, @intCast(x))] = NUMBER_SIGN;
+        if (is_within_bounds(y, 50) and is_within_bounds(x, 100))
+            buffer[@as(usize, @intCast(y * 100 + x))] = NUMBER_SIGN;
 
         i += 1;
     }
