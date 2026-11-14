@@ -25,7 +25,7 @@ const Circle = struct {
     step: i32,
 
     pub fn next(self: *Circle) ?Vec2f {
-        const target_step = 50;
+        const target_step = 12;
         if (self.step >= target_step) return null;
 
         const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(target_step)) * PI2;
@@ -209,33 +209,57 @@ fn bresenham(buffer: []?Vec2i, start: Vec2i, end: Vec2i) void {
 // 3. rasterize into array of points
 // 4. transfer rasterization onto draw buffer
 fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
-    var points: [256]?Vec2i = @splat(null);
-    var i: usize = 0;
-    while (shape.next()) |p| : (i += 1) {
-        // FIXME: a bit jittery...
-        // seems like position rounds in a bad way?
-        points[i] = .{
-            .y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y))),
-            .x = @as(i32, @intFromFloat(@round(p.x * 2.0 + shape.pos.x * 2.0))),
-        };
-    }
-    shape.reset();
-
-    // TODO: we could probably draw the rasterized points directly to the output buffer
     var rasterized_points: [128]?Vec2i = @splat(null);
-    for (points, 0..) |p, ii| {
-        @memset(&rasterized_points, null);
-        const first_point = points[0] orelse break;
-        const p1 = p orelse break;
-        const p2 = points[ii + 1] orelse first_point;
+    var i: usize = 0;
+    var first_point: Vec2f = undefined;
+    var prev_point: Vec2f = undefined;
+    while (shape.next()) |s| : (i += 1) {
+        if (i == 0) {
+            first_point = s;
+            prev_point = s;
+            continue;
+        }
 
+        const p1: Vec2i = .{
+            .y = @as(i32, @intFromFloat(@round(prev_point.y + shape.pos.y))),
+            .x = @as(i32, @intFromFloat(@round(prev_point.x * 2.0 + shape.pos.x * 2.0))),
+        };
+        const p2: Vec2i = .{
+            .y = @as(i32, @intFromFloat(@round(s.y + shape.pos.y))),
+            .x = @as(i32, @intFromFloat(@round(s.x * 2.0 + shape.pos.x * 2.0))),
+        };
+
+        // TODO: we could probably draw the rasterized points directly to the output buffer
+        // .next() pattern here as well?
         bresenham(&rasterized_points, p1, p2);
         for (rasterized_points) |rp| {
             const rpp = rp orelse break;
             if (isWithinBounds(rpp.y, winsize.row) and isWithinBounds(rpp.x, winsize.col))
                 buffer[@as(usize, @intCast(rpp.y * winsize.col + rpp.x))] = NUMBER_SIGN;
         }
+
+        @memset(&rasterized_points, null);
+        prev_point = s;
     }
+
+    // bad...
+    // need to split this up to make it easier to call post-loop
+    const p1: Vec2i = .{
+        .y = @as(i32, @intFromFloat(@round(prev_point.y + shape.pos.y))),
+        .x = @as(i32, @intFromFloat(@round(prev_point.x * 2.0 + shape.pos.x * 2.0))),
+    };
+    const p2: Vec2i = .{
+        .y = @as(i32, @intFromFloat(@round(first_point.y + shape.pos.y))),
+        .x = @as(i32, @intFromFloat(@round(first_point.x * 2.0 + shape.pos.x * 2.0))),
+    };
+
+    bresenham(&rasterized_points, p1, p2);
+    for (rasterized_points) |rp| {
+        const rpp = rp orelse break;
+        if (isWithinBounds(rpp.y, winsize.row) and isWithinBounds(rpp.x, winsize.col))
+            buffer[@as(usize, @intCast(rpp.y * winsize.col + rpp.x))] = NUMBER_SIGN;
+    }
+    shape.reset();
 }
 
 fn drawBufferToStdout(writer: *std.Io.File.Writer, buffer: []u8, winsize: std.posix.winsize) !void {
