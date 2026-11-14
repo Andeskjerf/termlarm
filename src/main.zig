@@ -10,21 +10,30 @@ const MAX_DEGREES = 360;
 const SPACE = 32;
 const NUMBER_SIGN = 35;
 
-const output_y = 50;
-const output_x = output_y * 2;
+const BUFFER_MAX_Y = 1024;
+const BUFFER_MAX_X = BUFFER_MAX_Y * 2;
+
+const Vec2 = struct {
+    y: i32,
+    x: i32,
+};
 
 pub fn main(_: std.process.Init) !void {
-    var output: [output_y][output_x]u8 = @splat(@splat(SPACE));
-    circle(&output, 40, output_y / 2, output_x / 2);
+    const draw_size: Vec2 = .{ .y = 50, .x = 50 * 2 };
 
-    for (&output) |*y| {
-        std.debug.print("{s}\n", .{y});
+    var output: [BUFFER_MAX_Y][BUFFER_MAX_X]u8 = @splat(@splat(SPACE));
+    draw_circle(&output, 40, .{ .y = draw_size.y / 2, .x = draw_size.x / 2 });
+
+    for (&output, 0..) |*y, i| {
+        if (i >= draw_size.y) {
+            break;
+        }
+        std.debug.print("{s}\n", .{y[0..draw_size.x]});
     }
 }
 
-fn circle(buffer: *[output_y][output_x]u8, size: i32, pos_y: i32, pos_x: i32) void {
-    const max_y = size;
-    const max_x = size * 2;
+fn draw_circle(buffer: *[BUFFER_MAX_Y][BUFFER_MAX_X]u8, radius: i32, pos: Vec2) void {
+    const size: Vec2 = .{ .y = radius, .x = radius * 2 };
 
     var i: i16 = 0;
     // TODO: separate steps from degrees
@@ -32,10 +41,10 @@ fn circle(buffer: *[output_y][output_x]u8, size: i32, pos_y: i32, pos_x: i32) vo
     while (i < steps) {
         const radi = degrees_to_radian(@floatFromInt(i));
 
-        const y = apply_offset(calculate_position(std.math.cos(radi), max_y - 1), pos_y, max_y);
-        const x = apply_offset(calculate_position(std.math.sin(radi), max_x - 1), pos_x, max_x);
+        const y = apply_offset(calculate_position(std.math.cos(radi), size.y - 1), pos.y, size.y);
+        const x = apply_offset(calculate_position(std.math.sin(radi), size.x - 1), pos.x, size.x);
 
-        if (is_within_bounds(y, output_y) and is_within_bounds(x, output_x))
+        if (is_within_bounds(y, BUFFER_MAX_Y) and is_within_bounds(x, BUFFER_MAX_X))
             buffer[@as(usize, @intCast(y))][@as(usize, @intCast(x))] = NUMBER_SIGN;
 
         i += 1;
