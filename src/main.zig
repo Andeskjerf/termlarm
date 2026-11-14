@@ -73,7 +73,42 @@ const Line = struct {
     }
 };
 
-fn Shape(comptime T: type) *T {}
+const PrimitiveTag = enum {
+    line,
+    circle,
+};
+
+const Primitive = union(PrimitiveTag) {
+    line: Line,
+    circle: Circle,
+};
+
+const Shape = struct {
+    primitive: Primitive,
+    pos: Vec2f,
+    scale: f32,
+
+    pub fn next(self: *Shape) ?Vec2f {
+        return switch (self.primitive) {
+            .line => |*line| line.next(),
+            .circle => |*circle| circle.next(),
+        };
+    }
+
+    pub fn reset(self: *Shape) void {
+        switch (self.primitive) {
+            .line => |*line| line.reset(),
+            .circle => |*circle| circle.reset(),
+        }
+    }
+
+    pub fn size(self: *Shape) f32 {
+        return switch (self.primitive) {
+            .line => |*line| line.length,
+            .circle => |*circle| circle.size(),
+        };
+    }
+};
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -95,41 +130,49 @@ pub fn main(init: std.process.Init) !void {
     _ = try output.addManyAt(allocator, 0, win_size.row * win_size.col);
     @memset(output.items[0 .. win_size.row * win_size.col], SPACE);
 
-    var circle: Circle = .{
-        .radius = 10,
-        .step = 0,
+    var circle: Shape = .{
+        .primitive = .{ .circle = .{
+            .radius = 10,
+            .step = 0,
+        } },
+        .pos = .{
+            .y = world_size.y / 2.0,
+            .x = world_size.x / 2.0,
+        },
+        .scale = 1.0,
     };
+
     var circle_vec: Vec2f = .{
         .y = 0.5,
         .x = 0.5,
     };
-    var circle_pos: Vec2f = .{
-        .y = world_size.y / 2.0,
-        .x = world_size.x / 2.0,
+
+    var line: Shape = .{
+        .primitive = .{ .line = .{
+            .x = 0.0,
+            .length = 20.0,
+        } },
+        .pos = .{
+            .y = world_size.y / 2.0,
+            .x = world_size.x / 2.0,
+        },
+        .scale = 1.0,
     };
 
-    var line: Line = .{
-        .x = 0.0,
-        .length = 20.0,
-    };
-    const line_pos: Vec2f = .{
-        .y = world_size.y / 2.0,
-        .x = world_size.x / 2.0,
-    };
     const velocity = 1.5;
     while (true) {
-        circle_pos.x += circle_vec.x * velocity;
-        circle_pos.y += circle_vec.y * velocity;
+        circle.pos.x += circle_vec.x * velocity;
+        circle.pos.y += circle_vec.y * velocity;
 
-        if (circle_pos.x + @as(f32, @floatFromInt(circle.radius)) >= world_size.x or circle_pos.x - @as(f32, @floatFromInt(circle.radius)) <= 0) {
+        if (circle.pos.x + circle.size() / 2.0 >= world_size.x or circle.pos.x - circle.size() / 2.0 <= 0) {
             circle_vec.x = -circle_vec.x;
         }
-        if (circle_pos.y + @as(f32, @floatFromInt(circle.radius)) >= world_size.y or circle_pos.y - @as(f32, @floatFromInt(circle.radius)) <= 0) {
+        if (circle.pos.y + circle.size() / 2.0 >= world_size.y or circle.pos.y - circle.size() / 2.0 <= 0) {
             circle_vec.y = -circle_vec.y;
         }
 
-        drawLineOntoBuffer(&line, output.items, line_pos, win_size);
-        drawShapeOntoBuffer(&circle, output.items, circle_pos, win_size);
+        drawShapeOntoBuffer(&line, output.items, win_size);
+        drawShapeOntoBuffer(&circle, output.items, win_size);
         try drawBufferToStdout(&writer, output.items, win_size);
 
         try init.io.sleep(std.Io.Duration.fromMilliseconds(16), std.Io.Clock.real);
@@ -142,20 +185,10 @@ fn getTermSize() std.posix.winsize {
     return winsize;
 }
 
-fn drawShapeOntoBuffer(shape: *Circle, buffer: []u8, pos: Vec2f, winsize: std.posix.winsize) void {
+fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
     while (shape.next()) |p| {
-        const y = @as(i32, @intFromFloat(@round(p.y + pos.y)));
-        const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + pos.x * 2.0)));
-        if (isWithinBounds(y, winsize.row) and isWithinBounds(x, winsize.col))
-            buffer[@as(usize, @intCast(y * winsize.col + x))] = NUMBER_SIGN;
-    }
-    shape.reset();
-}
-
-fn drawLineOntoBuffer(shape: *Line, buffer: []u8, pos: Vec2f, winsize: std.posix.winsize) void {
-    while (shape.next()) |p| {
-        const y = @as(i32, @intFromFloat(@round(p.y + pos.y)));
-        const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + pos.x * 2.0)));
+        const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
+        const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + shape.pos.x * 2.0)));
         if (isWithinBounds(y, winsize.row) and isWithinBounds(x, winsize.col))
             buffer[@as(usize, @intCast(y * winsize.col + x))] = NUMBER_SIGN;
     }
