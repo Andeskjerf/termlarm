@@ -25,7 +25,7 @@ const Circle = struct {
     step: i32,
 
     pub fn next(self: *Circle) ?Vec2f {
-        const target_step = 50;
+        const target_step = 15;
         if (self.step >= target_step) return null;
 
         const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(target_step)) * PI2;
@@ -212,6 +212,8 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
     var points: [256]?Vec2i = @splat(null);
     var i: usize = 0;
     while (shape.next()) |p| : (i += 1) {
+        // FIXME: a bit jittery...
+        // seems like position rounds in a bad way
         const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
         const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + shape.pos.x * 2.0)));
         points[i] = .{
@@ -221,6 +223,7 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
     }
     shape.reset();
 
+    // TODO: we could probably draw the rasterized points directly to the output buffer
     var rasterized_points: [128]?Vec2i = @splat(null);
     for (points, 0..) |p, ii| {
         @memset(&rasterized_points, null);
