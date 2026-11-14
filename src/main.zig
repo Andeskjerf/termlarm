@@ -44,31 +44,36 @@ pub fn main(init: std.process.Init) !void {
     const allocator = arena.allocator();
 
     const drawBuffer = try allocator.create([1024]u8);
-    var stdout = std.Io.File.stdout().writer(io, drawBuffer);
+    const stdout = std.Io.File.stdout();
+    var writer = stdout.writer(io, drawBuffer);
 
-    const drawSize: Vec2i = .{ .y = 50, .x = 50 * 2 };
-    const output = try allocator.create([drawSize.y * drawSize.x]u8);
-    @memset(output[0 .. drawSize.y * drawSize.x], SPACE);
+    var winsize: std.posix.winsize = undefined;
+    _ = std.os.linux.ioctl(stdout.handle, std.os.linux.T.IOCGWINSZ, @intFromPtr(&winsize));
+
+    const drawSize: Vec2i = .{ .y = winsize.row, .x = winsize.col };
+    var output = try std.ArrayList(u8).initCapacity(allocator, winsize.row * winsize.col);
+    _ = try output.addManyAt(allocator, 0, winsize.row * winsize.col);
+    @memset(output.items[0 .. winsize.row * winsize.col], SPACE);
 
     var circleX: f32 = 0;
     var circleY: f32 = 0;
     while (true) {
-        try stdout.interface.writeAll("\x1b[H");
+        try writer.interface.writeAll("\x1b[H");
 
         var circle: Circle = .{ .radius = 10, .step = 0 };
         while (circle.next()) |p| {
             const y = @as(i32, @intFromFloat(@round(p.y + circleY)));
             const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + circleX)));
             if (is_within_bounds(y, drawSize.y) and is_within_bounds(x, drawSize.x))
-                output[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
+                output.items[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
         }
 
         var row: i32 = 0;
         while (row < drawSize.y) {
-            const startPos = @as(usize, @intCast(row * drawSize.x));
-            const endPos = @as(usize, @intCast(startPos + drawSize.x));
+            const startPos = @as(usize, @intCast(row * winsize.col));
+            const endPos = @as(usize, @intCast(startPos + winsize.col));
 
-            try stdout.interface.print("{s}\n", .{output[startPos..endPos]});
+            try writer.interface.print("{s}\n", .{output.items[startPos..endPos]});
             row += 1;
         }
 
@@ -81,8 +86,8 @@ pub fn main(init: std.process.Init) !void {
             circleY = @as(f32, @floatFromInt(-circle.radius * 2));
         }
 
-        try stdout.interface.flush();
-        @memset(output[0 .. drawSize.y * drawSize.x], SPACE);
+        try writer.interface.flush();
+        @memset(output.items[0 .. winsize.row * winsize.col], SPACE);
 
         try init.io.sleep(std.Io.Duration.fromMilliseconds(16), std.Io.Clock.real);
     }
