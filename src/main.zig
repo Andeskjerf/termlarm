@@ -32,8 +32,8 @@ pub fn main(_: std.process.Init) !void {
     }
 }
 
-fn draw_circle(buffer: *[BUFFER_MAX_Y][BUFFER_MAX_X]u8, radius: i32, pos: Vec2) void {
-    const size: Vec2 = .{ .y = radius, .x = radius * 2 };
+fn draw_circle(buffer: *[BUFFER_MAX_Y][BUFFER_MAX_X]u8, size: i32, pos: Vec2) void {
+    const _size: Vec2 = .{ .y = size, .x = size * 2 };
 
     var i: i16 = 0;
     // TODO: separate steps from degrees
@@ -41,8 +41,8 @@ fn draw_circle(buffer: *[BUFFER_MAX_Y][BUFFER_MAX_X]u8, radius: i32, pos: Vec2) 
     while (i < steps) {
         const radi = degrees_to_radian(@floatFromInt(i));
 
-        const y = apply_offset(calculate_position(std.math.cos(radi), size.y - 1), pos.y, size.y);
-        const x = apply_offset(calculate_position(std.math.sin(radi), size.x - 1), pos.x, size.x);
+        const y = apply_offset(calculate_position(std.math.cos(radi), _size.y - 1), pos.y, _size.y);
+        const x = apply_offset(calculate_position(std.math.sin(radi), _size.x - 1), pos.x, _size.x);
 
         if (is_within_bounds(y, BUFFER_MAX_Y) and is_within_bounds(x, BUFFER_MAX_X))
             buffer[@as(usize, @intCast(y))][@as(usize, @intCast(x))] = NUMBER_SIGN;
