@@ -15,6 +15,10 @@ const Vec2 = struct {
     x: i32,
 };
 
+// TODO:
+// 1. [x] circle should be in its own coordinate space - we should not need to worry about having it above 0
+// 2. [ ] circle should NOT take into account the width of characters, like it currently does. renderer should focus on that
+
 const Circle = struct {
     radius: i32,
     step: i32,
@@ -24,8 +28,7 @@ const Circle = struct {
         if (self.step >= targetStep) return null;
 
         const size = self.radius * 2;
-        const fraction = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(targetStep));
-        const radi = fraction * PI2;
+        const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(targetStep)) * PI2;
         const y = calculate_position(std.math.cos(radi), size);
         const x = calculate_position(std.math.sin(radi), (size * 2));
         self.step += 1;
@@ -33,11 +36,6 @@ const Circle = struct {
         return Vec2{ .y = y, .x = x };
     }
 };
-
-// 1. [x] move away from debug print, figure out how to print our circle that way
-// 2. [x] rewrite circle function to return an array of points
-// 3. [x] do transformations before drawing / moving to output buffer
-// 4. [x] take these points and draw em
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -54,8 +52,10 @@ pub fn main(init: std.process.Init) !void {
 
     var circle: Circle = .{ .radius = 20, .step = 0 };
     while (circle.next()) |p| {
-        const y = apply_offset(p.y, drawSize.y / 2, circle.radius * 2);
-        const x = apply_offset(p.x, drawSize.x / 2, circle.radius * 2 * 2);
+        const shifted_y = p.y + circle.radius;
+        const shifted_x = p.x + circle.radius * 2;
+        const y = apply_offset(shifted_y, drawSize.y / 2, circle.radius * 2);
+        const x = apply_offset(shifted_x, drawSize.x / 2, circle.radius * 2 * 2);
         if (is_within_bounds(y, drawSize.y) and is_within_bounds(x, drawSize.x))
             output[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
     }
@@ -77,7 +77,7 @@ fn degrees_to_radian(degree: f32) f32 {
 
 fn calculate_position(value: f32, max: i32) i32 {
     const half: f32 = @as(f32, @floatFromInt(max)) / 2.0;
-    const pos = (value + 1.0) * half; // [0, max_x]
+    const pos = value * half;
     return @intFromFloat(@round(pos));
 }
 
