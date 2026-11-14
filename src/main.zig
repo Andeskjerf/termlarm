@@ -73,7 +73,7 @@ pub fn main(init: std.process.Init) !void {
             const startPos = @as(usize, @intCast(row * winsize.col));
             const endPos = @as(usize, @intCast(startPos + winsize.col));
 
-            try writer.interface.print("{s}\n", .{output.items[startPos..endPos]});
+            try writer.interface.print("{s}", .{output.items[startPos..endPos]});
             row += 1;
         }
 
