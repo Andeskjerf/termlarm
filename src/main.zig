@@ -35,10 +35,11 @@ fn circle(buffer: *[output_y][output_x]u8, size: comptime_int, pos_y: i32, pos_x
     while (i < steps) {
         const radi = degrees_to_radian(@floatFromInt(i));
 
-        const y: usize = apply_offset(calculate_position(std.math.cos(radi), max_y - 1), pos_y, max_y);
-        const x: usize = apply_offset(calculate_position(std.math.sin(radi), max_x - 1), pos_x, max_x);
+        const y = apply_offset(calculate_position(std.math.cos(radi), max_y - 1), pos_y, max_y);
+        const x = apply_offset(calculate_position(std.math.sin(radi), max_x - 1), pos_x, max_x);
 
-        buffer[y][x] = NUMBER_SIGN;
+        if (is_within_bounds(y, output_y) and is_within_bounds(x, output_x))
+            buffer[@as(usize, @intCast(y))][@as(usize, @intCast(x))] = NUMBER_SIGN;
 
         i += 1;
     }
@@ -48,14 +49,18 @@ fn degrees_to_radian(degree: f32) f32 {
     return degree * PI2 / @as(f32, @floatFromInt(MAX_DEGREES));
 }
 
-fn calculate_position(value: f32, max: i32) usize {
+fn calculate_position(value: f32, max: i32) i32 {
     const half: f32 = @as(f32, @floatFromInt(max)) / 2.0;
     const pos = (value + 1.0) * half; // [0, max_x]
     return @intFromFloat(@round(pos));
 }
 
-fn apply_offset(value: usize, offset: i32, size: i32) usize {
-    return value + @as(usize, @intCast(offset - @divFloor(size, 2)));
+fn apply_offset(value: i32, offset: i32, size: i32) i32 {
+    return value + (offset - @divFloor(size, 2));
+}
+
+fn is_within_bounds(value: i32, upper_limit: i32) bool {
+    return value < upper_limit and value >= 0;
 }
 
 test "degrees_to_radian gives correct degrees" {
