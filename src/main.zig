@@ -25,7 +25,7 @@ const Circle = struct {
     step: i32,
 
     pub fn next(self: *Circle) ?Vec2f {
-        const target_step = self.radius * 20;
+        const target_step = self.radius;
         if (self.step >= target_step) return null;
 
         const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(target_step)) * PI2;
@@ -163,7 +163,7 @@ pub fn main(init: std.process.Init) !void {
             circle_vec.y = -circle_vec.y;
         }
 
-        drawLineOntoBuffer(&line, output.items, win_size);
+        drawShapeOntoBuffer(&line, output.items, win_size);
         drawShapeOntoBuffer(&circle, output.items, win_size);
         try drawBufferToStdout(&writer, output.items, win_size);
 
@@ -202,17 +202,7 @@ fn bresenham(buffer: []?Vec2i, start: Vec2i, end: Vec2i) void {
 // 3. rasterize into array of points
 // 4. transfer rasterization onto draw buffer
 fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
-    while (shape.next()) |p| {
-        const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
-        const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + shape.pos.x * 2.0)));
-        if (isWithinBounds(y, winsize.row) and isWithinBounds(x, winsize.col))
-            buffer[@as(usize, @intCast(y * winsize.col + x))] = NUMBER_SIGN;
-    }
-    shape.reset();
-}
-
-fn drawLineOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
-    var points: [64]?Vec2i = @splat(null);
+    var points: [1024]?Vec2i = @splat(null);
     var i: usize = 0;
     while (shape.next()) |p| : (i += 1) {
         const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
