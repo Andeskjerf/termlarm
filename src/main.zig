@@ -20,10 +20,6 @@ const Vec2f = struct {
     x: f32,
 };
 
-// TODO:
-// 1. [x] circle should be in its own coordinate space - we should not need to worry about having it above 0
-// 2. [ ] circle should NOT take into account the width of characters, like it currently does. renderer should focus on that
-
 const Circle = struct {
     radius: i32,
     step: i32,
