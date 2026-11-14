@@ -2,6 +2,7 @@
   inputs = {
     nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    devshell.url = "github:numtide/devshell";
   };
 
   outputs =
@@ -16,6 +17,7 @@
       }:
       {
         imports = [
+          inputs.devshell.flakeModule
         ];
         flake = {
         };
@@ -32,7 +34,9 @@
             ];
             commands = [
               {
-                build = "zig build";
+                help = "Builds the current project";
+                name = "build";
+                command = "zig build";
               }
             ];
             packages = [
