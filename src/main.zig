@@ -10,6 +10,11 @@ const MAX_DEGREES = 360;
 const SPACE = 32;
 const NUMBER_SIGN = 35;
 
+const Vec2i = struct {
+    y: i32,
+    x: i32,
+};
+
 const Vec2f = struct {
     y: f32,
     x: f32,
@@ -48,15 +53,9 @@ const Line = struct {
     length: f32,
 
     pub fn next(self: *Line) ?Vec2f {
-        if (self.x >= self.length) return null;
+        if (self.x > self.length) return null;
         const x = self.x - self.length / 2.0;
-        // FIXME: a bit hacky...
-        // ideally we should be able to iterate this only by 1
-        // but because the renderer draws everything on the X axis twice as wide, we will get gaps because we do not have enough points to draw a continous line
-        // the renderer draws the X axis twice as wide to compensate for uneven font size (tall, slim characters)
-        // ideally the renderer would interpolate and fill in the points inbetween, maybe?
-        // for now, set the increment to something low so we have enough points to draw
-        self.x += 0.5;
+        self.x += self.length;
         return .{
             .y = 0.0,
             .x = x,
@@ -164,7 +163,7 @@ pub fn main(init: std.process.Init) !void {
             circle_vec.y = -circle_vec.y;
         }
 
-        drawShapeOntoBuffer(&line, output.items, win_size);
+        drawLineOntoBuffer(&line, output.items, win_size);
         drawShapeOntoBuffer(&circle, output.items, win_size);
         try drawBufferToStdout(&writer, output.items, win_size);
 
@@ -176,6 +175,25 @@ fn getTermSize() std.posix.winsize {
     var winsize: std.posix.winsize = undefined;
     _ = std.os.linux.ioctl(std.Io.File.stdout().handle, std.os.linux.T.IOCGWINSZ, @intFromPtr(&winsize));
     return winsize;
+}
+
+fn bresenham(buffer: []?Vec2i, start: Vec2i, end: Vec2i) void {
+    const m = 2 * (end.y - start.y);
+    var slope_error = m - (end.x - start.x);
+
+    var i: usize = 0;
+    var x = start.x;
+    var y = start.y;
+    while (x <= end.x) : (x += 1) {
+        buffer[i] = Vec2i{ .y = y, .x = x };
+
+        slope_error += m;
+        if (slope_error >= 0) {
+            y += 1;
+            slope_error -= 2 * (end.x - start.x);
+        }
+        i += 1;
+    }
 }
 
 // order of operations:
@@ -191,6 +209,44 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
             buffer[@as(usize, @intCast(y * winsize.col + x))] = NUMBER_SIGN;
     }
     shape.reset();
+}
+
+fn drawLineOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
+    var points: [64]?Vec2i = @splat(null);
+    var i: usize = 0;
+    while (shape.next()) |p| : (i += 1) {
+        const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
+        const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + shape.pos.x * 2.0)));
+        points[i] = .{
+            .y = y,
+            .x = x,
+        };
+    }
+    shape.reset();
+
+    var rasterized_points: [64]?Vec2i = @splat(null);
+    for (points, 0..) |p, ii| {
+        @memset(rasterized_points[0..64], null);
+        const pp1 = p.?;
+        const p1: Vec2i = .{
+            .y = pp1.y,
+            .x = pp1.x,
+        };
+        if (points[ii + 1] == null) break;
+        const pp2 = points[ii + 1].?;
+        const p2: Vec2i = .{
+            .y = pp2.y,
+            .x = pp2.x,
+        };
+
+        bresenham(&rasterized_points, p1, p2);
+        for (rasterized_points) |rp| {
+            if (rp == null) break;
+            const rpp = rp.?;
+            if (isWithinBounds(rpp.y, winsize.row) and isWithinBounds(rpp.x, winsize.col))
+                buffer[@as(usize, @intCast(rpp.y * winsize.col + rpp.x))] = NUMBER_SIGN;
+        }
+    }
 }
 
 fn drawBufferToStdout(writer: *std.Io.File.Writer, buffer: []u8, winsize: std.posix.winsize) !void {
