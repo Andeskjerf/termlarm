@@ -54,23 +54,31 @@ pub fn main(init: std.process.Init) !void {
     const output = try allocator.create([drawSize.y * drawSize.x]u8);
     @memset(output[0 .. drawSize.y * drawSize.x], SPACE);
 
-    var circle: Circle = .{ .radius = 20, .step = 0 };
-    while (circle.next()) |p| {
-        const y = @as(i32, @intFromFloat(@round(p.y))) + drawSize.y / 2;
-        const x = @as(i32, @intFromFloat(@round(p.x))) + drawSize.x / 2;
-        if (is_within_bounds(y, drawSize.y) and is_within_bounds(x, drawSize.x))
-            output[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
-    }
+    while (true) {
+        try stdout.interface.writeAll("\x1b[H");
 
-    var row: i32 = 0;
-    while (row < drawSize.y) {
-        const startPos = @as(usize, @intCast(row * drawSize.x));
-        const endPos = @as(usize, @intCast(startPos + drawSize.x));
+        var circle: Circle = .{ .radius = 20, .step = 0 };
+        while (circle.next()) |p| {
+            const y = @as(i32, @intFromFloat(@round(p.y))) + drawSize.y / 2;
+            const x = @as(i32, @intFromFloat(@round(p.x))) + drawSize.x / 2;
+            if (is_within_bounds(y, drawSize.y) and is_within_bounds(x, drawSize.x))
+                output[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
+        }
 
-        try stdout.interface.print("{s}\n", .{output[startPos..endPos]});
-        row += 1;
+        var row: i32 = 0;
+        while (row < drawSize.y) {
+            const startPos = @as(usize, @intCast(row * drawSize.x));
+            const endPos = @as(usize, @intCast(startPos + drawSize.x));
+
+            try stdout.interface.print("{s}\n", .{output[startPos..endPos]});
+            row += 1;
+        }
+
+        try stdout.interface.flush();
+        @memset(output[0 .. drawSize.y * drawSize.x], SPACE);
+
+        try init.io.sleep(std.Io.Duration.fromMilliseconds(16), std.Io.Clock.real);
     }
-    try stdout.interface.flush();
 }
 
 fn degrees_to_radian(degree: f32) f32 {
