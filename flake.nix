@@ -46,7 +46,6 @@
             ];
             packages = [
               pkgs.zig
-              pkgs.ncurses
             ];
           };
         };
