@@ -34,7 +34,7 @@ const Circle = struct {
 
         const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(targetStep)) * PI2;
         const y = std.math.cos(radi) * @as(f32, @floatFromInt(self.radius));
-        const x = std.math.sin(radi) * @as(f32, @floatFromInt((self.radius * 2)));
+        const x = std.math.sin(radi) * @as(f32, @floatFromInt(self.radius));
         self.step += 1;
 
         return Vec2f{ .y = y, .x = x };
@@ -54,13 +54,15 @@ pub fn main(init: std.process.Init) !void {
     const output = try allocator.create([drawSize.y * drawSize.x]u8);
     @memset(output[0 .. drawSize.y * drawSize.x], SPACE);
 
+    var circleX: f32 = 0;
+    var circleY: f32 = 0;
     while (true) {
         try stdout.interface.writeAll("\x1b[H");
 
-        var circle: Circle = .{ .radius = 20, .step = 0 };
+        var circle: Circle = .{ .radius = 10, .step = 0 };
         while (circle.next()) |p| {
-            const y = @as(i32, @intFromFloat(@round(p.y))) + drawSize.y / 2;
-            const x = @as(i32, @intFromFloat(@round(p.x))) + drawSize.x / 2;
+            const y = @as(i32, @intFromFloat(@round(p.y + circleY)));
+            const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + circleX)));
             if (is_within_bounds(y, drawSize.y) and is_within_bounds(x, drawSize.x))
                 output[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
         }
@@ -72,6 +74,15 @@ pub fn main(init: std.process.Init) !void {
 
             try stdout.interface.print("{s}\n", .{output[startPos..endPos]});
             row += 1;
+        }
+
+        circleX += 1.5;
+        circleY += 0.75;
+        if (@as(i32, @intFromFloat(circleX)) >= circle.radius * 2 + drawSize.x) {
+            circleX = @as(f32, @floatFromInt(-circle.radius * 2));
+        }
+        if (@as(i32, @intFromFloat(circleY)) >= circle.radius + drawSize.y) {
+            circleY = @as(f32, @floatFromInt(-circle.radius * 2));
         }
 
         try stdout.interface.flush();
