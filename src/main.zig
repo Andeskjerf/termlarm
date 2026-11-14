@@ -15,10 +15,29 @@ const Vec2 = struct {
     x: i32,
 };
 
+const Circle = struct {
+    radius: i32,
+    step: i32,
+
+    pub fn next(self: *Circle) ?Vec2 {
+        const targetStep = self.radius * 20;
+        if (self.step >= targetStep) return null;
+
+        const size = self.radius * 2;
+        const fraction = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(targetStep));
+        const radi = fraction * PI2;
+        const y = calculate_position(std.math.cos(radi), size);
+        const x = calculate_position(std.math.sin(radi), (size * 2));
+        self.step += 1;
+
+        return Vec2{ .y = y, .x = x };
+    }
+};
+
 // 1. [x] move away from debug print, figure out how to print our circle that way
-// 2. [ ] rewrite circle function to return an array of points
-// 3. [ ] do transformations before drawing / moving to output buffer
-// 4. [ ] take these points and draw em
+// 2. [x] rewrite circle function to return an array of points
+// 3. [x] do transformations before drawing / moving to output buffer
+// 4. [x] take these points and draw em
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -33,7 +52,13 @@ pub fn main(init: std.process.Init) !void {
     const output = try allocator.create([drawSize.y * drawSize.x]u8);
     @memset(output[0 .. drawSize.y * drawSize.x], SPACE);
 
-    draw_circle(output, 40, .{ .y = drawSize.y / 2, .x = drawSize.x / 2 });
+    var circle: Circle = .{ .radius = 20, .step = 0 };
+    while (circle.next()) |p| {
+        const y = apply_offset(p.y, drawSize.y / 2, circle.radius * 2);
+        const x = apply_offset(p.x, drawSize.x / 2, circle.radius * 2 * 2);
+        if (is_within_bounds(y, drawSize.y) and is_within_bounds(x, drawSize.x))
+            output[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
+    }
 
     var row: i32 = 0;
     while (row < drawSize.y) {
@@ -44,31 +69,6 @@ pub fn main(init: std.process.Init) !void {
         row += 1;
     }
     try stdout.interface.flush();
-}
-
-// TODO: rewrite to instead return an array of coordinates
-// if it should return an array of coordinates, we need to size it according to some value...
-// how expensive is heap allocation really?
-// 1. allocate something on the heap for every circle we draw. that lets us create all our shapes before drawing
-// 2. reuse a buffer for storing each shape, then immediately transfer it to output buffer & clear shape buffer. this avoids allocating a buffer for each shape
-fn draw_circle(buffer: []u8, size: i32, pos: Vec2) void {
-    const _size: Vec2 = .{ .y = size, .x = size * 2 };
-
-    var i: i16 = 0;
-    // TODO: separate steps from degrees
-    const steps = MAX_DEGREES;
-    while (i < steps) {
-        const radi = degrees_to_radian(@floatFromInt(i));
-
-        // should not deal with offsets in here, that is the responsibility of the canvas
-        const y = apply_offset(calculate_position(std.math.cos(radi), _size.y - 1), pos.y, _size.y);
-        const x = apply_offset(calculate_position(std.math.sin(radi), _size.x - 1), pos.x, _size.x);
-
-        if (is_within_bounds(y, 50) and is_within_bounds(x, 100))
-            buffer[@as(usize, @intCast(y * 100 + x))] = NUMBER_SIGN;
-
-        i += 1;
-    }
 }
 
 fn degrees_to_radian(degree: f32) f32 {
