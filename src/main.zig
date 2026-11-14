@@ -151,7 +151,7 @@ pub fn main(init: std.process.Init) !void {
         .scale = 1.0,
     };
 
-    const velocity = 1.5;
+    const velocity = 0.5;
     while (true) {
         circle.pos.x += circle_vec.x * velocity;
         circle.pos.y += circle_vec.y * velocity;
@@ -213,7 +213,7 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
     var i: usize = 0;
     while (shape.next()) |p| : (i += 1) {
         // FIXME: a bit jittery...
-        // seems like position rounds in a bad way
+        // seems like position rounds in a bad way?
         const y = @as(i32, @intFromFloat(@round(p.y + shape.pos.y)));
         const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + shape.pos.x * 2.0)));
         points[i] = .{
@@ -228,16 +228,8 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
     for (points, 0..) |p, ii| {
         @memset(&rasterized_points, null);
         const first_point = points[0] orelse break;
-        const pp1 = p orelse break;
-        const p1: Vec2i = .{
-            .y = pp1.y,
-            .x = pp1.x,
-        };
-        const pp2 = points[ii + 1] orelse first_point;
-        const p2: Vec2i = .{
-            .y = pp2.y,
-            .x = pp2.x,
-        };
+        const p1 = p orelse break;
+        const p2 = points[ii + 1] orelse first_point;
 
         bresenham(&rasterized_points, p1, p2);
         for (rasterized_points) |rp| {
