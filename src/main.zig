@@ -21,7 +21,7 @@ const Vec2f = struct {
 };
 
 const Circle = struct {
-    radius: i32,
+    radius: f32,
     step: i32,
 
     pub fn next(self: *Circle) ?Vec2f {
@@ -29,8 +29,8 @@ const Circle = struct {
         if (self.step >= target_step) return null;
 
         const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(target_step)) * PI2;
-        const y = std.math.cos(radi) * @as(f32, @floatFromInt(self.radius));
-        const x = std.math.sin(radi) * @as(f32, @floatFromInt(self.radius));
+        const y = std.math.cos(radi) * self.radius;
+        const x = std.math.sin(radi) * self.radius;
         self.step += 1;
 
         return Vec2f{
@@ -40,7 +40,7 @@ const Circle = struct {
     }
 
     pub fn size(self: *Circle) f32 {
-        return @as(f32, @floatFromInt(self.radius)) * 2.0;
+        return self.radius * 2.0;
     }
 
     pub fn reset(self: *Circle) void {
