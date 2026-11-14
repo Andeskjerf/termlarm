@@ -19,15 +19,8 @@ pub fn main(_: std.process.Init) !void {
     while (i < steps) {
         const radi = degrees_to_radian(@floatFromInt(i));
 
-        var x: usize = calculate_x_position(radi, max_x);
-        var y: usize = calculate_y_position(radi, max_y);
-
-        if (y > 0) {
-            y = y - 1;
-        }
-        if (x > 0) {
-            x = x - 1;
-        }
+        const x: usize = calculate_x_position(radi, max_x - 1);
+        const y: usize = calculate_y_position(radi, max_y - 1);
 
         output[y][x] = NUMBER_SIGN;
 
