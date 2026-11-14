@@ -55,15 +55,16 @@ pub fn main(init: std.process.Init) !void {
     _ = try output.addManyAt(allocator, 0, winsize.row * winsize.col);
     @memset(output.items[0 .. winsize.row * winsize.col], SPACE);
 
-    var circleX: f32 = 0;
-    var circleY: f32 = 0;
+    const circleVec: Vec2f = .{ .y = 0.5, .x = 0.5 };
+    var circlePos: Vec2f = .{ .y = 0.0, .x = 0.0 };
+    const velocity = 0.5;
     while (true) {
         try writer.interface.writeAll("\x1b[H");
 
         var circle: Circle = .{ .radius = 10, .step = 0 };
         while (circle.next()) |p| {
-            const y = @as(i32, @intFromFloat(@round(p.y + circleY)));
-            const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + circleX)));
+            const y = @as(i32, @intFromFloat(@round(p.y + circlePos.y)));
+            const x = @as(i32, @intFromFloat(@round(p.x * 2.0 + circlePos.x)));
             if (is_within_bounds(y, drawSize.y) and is_within_bounds(x, drawSize.x))
                 output.items[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
         }
@@ -77,13 +78,13 @@ pub fn main(init: std.process.Init) !void {
             row += 1;
         }
 
-        circleX += 1.5;
-        circleY += 0.75;
-        if (@as(i32, @intFromFloat(circleX)) >= circle.radius * 2 + drawSize.x) {
-            circleX = @as(f32, @floatFromInt(-circle.radius * 2));
+        circlePos.x += circleVec.x * velocity;
+        circlePos.y += circleVec.y * velocity;
+        if (@as(i32, @intFromFloat(circlePos.x)) >= circle.radius * 2 + drawSize.x) {
+            circlePos.x = @as(f32, @floatFromInt(-circle.radius * 2));
         }
-        if (@as(i32, @intFromFloat(circleY)) >= circle.radius + drawSize.y) {
-            circleY = @as(f32, @floatFromInt(-circle.radius * 2));
+        if (@as(i32, @intFromFloat(circlePos.y)) >= circle.radius + drawSize.y) {
+            circlePos.y = @as(f32, @floatFromInt(-circle.radius * 2));
         }
 
         try writer.interface.flush();
@@ -93,28 +94,6 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-fn degrees_to_radian(degree: f32) f32 {
-    return degree * PI2 / @as(f32, @floatFromInt(MAX_DEGREES));
-}
-
 fn is_within_bounds(value: i32, upper_limit: i32) bool {
     return value < upper_limit and value >= 0;
-}
-
-test "degrees_to_radian gives correct degrees" {
-    const test_cases = [7][2]f32{
-        [_]f32{ 0.0, 0.0 },
-        [_]f32{ 30.0, 0.5235988 },
-        [_]f32{ 60.0, 1.047198 },
-        [_]f32{ 90.0, 1.570796 },
-        [_]f32{ MAX_DEGREES / 2, 3.141593 },
-        [_]f32{ 270.0, 4.712389 },
-        [_]f32{ MAX_DEGREES, 6.283185 },
-    };
-
-    for (test_cases) |cases| {
-        const case, const expected = cases;
-        const radian = degrees_to_radian(case);
-        try std.testing.expectApproxEqAbs(expected, radian, 0.000001);
-    }
 }
