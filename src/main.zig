@@ -10,9 +10,14 @@ const MAX_DEGREES = 360;
 const SPACE = 32;
 const NUMBER_SIGN = 35;
 
-const Vec2 = struct {
+const Vec2i = struct {
     y: i32,
     x: i32,
+};
+
+const Vec2f = struct {
+    y: f32,
+    x: f32,
 };
 
 // TODO:
@@ -23,17 +28,16 @@ const Circle = struct {
     radius: i32,
     step: i32,
 
-    pub fn next(self: *Circle) ?Vec2 {
+    pub fn next(self: *Circle) ?Vec2f {
         const targetStep = self.radius * 20;
         if (self.step >= targetStep) return null;
 
-        const size = self.radius * 2;
         const radi = @as(f32, @floatFromInt(self.step)) / @as(f32, @floatFromInt(targetStep)) * PI2;
-        const y = calculate_position(std.math.cos(radi), size);
-        const x = calculate_position(std.math.sin(radi), (size * 2));
+        const y = std.math.cos(radi) * @as(f32, @floatFromInt(self.radius));
+        const x = std.math.sin(radi) * @as(f32, @floatFromInt((self.radius * 2)));
         self.step += 1;
 
-        return Vec2{ .y = y, .x = x };
+        return Vec2f{ .y = y, .x = x };
     }
 };
 
@@ -46,16 +50,14 @@ pub fn main(init: std.process.Init) !void {
     const drawBuffer = try allocator.create([1024]u8);
     var stdout = std.Io.File.stdout().writer(io, drawBuffer);
 
-    const drawSize: Vec2 = .{ .y = 50, .x = 50 * 2 };
+    const drawSize: Vec2i = .{ .y = 50, .x = 50 * 2 };
     const output = try allocator.create([drawSize.y * drawSize.x]u8);
     @memset(output[0 .. drawSize.y * drawSize.x], SPACE);
 
     var circle: Circle = .{ .radius = 20, .step = 0 };
     while (circle.next()) |p| {
-        const shifted_y = p.y + circle.radius;
-        const shifted_x = p.x + circle.radius * 2;
-        const y = apply_offset(shifted_y, drawSize.y / 2, circle.radius * 2);
-        const x = apply_offset(shifted_x, drawSize.x / 2, circle.radius * 2 * 2);
+        const y = @as(i32, @intFromFloat(@round(p.y))) + drawSize.y / 2;
+        const x = @as(i32, @intFromFloat(@round(p.x))) + drawSize.x / 2;
         if (is_within_bounds(y, drawSize.y) and is_within_bounds(x, drawSize.x))
             output[@as(usize, @intCast(y * drawSize.x + x))] = NUMBER_SIGN;
     }
@@ -73,16 +75,6 @@ pub fn main(init: std.process.Init) !void {
 
 fn degrees_to_radian(degree: f32) f32 {
     return degree * PI2 / @as(f32, @floatFromInt(MAX_DEGREES));
-}
-
-fn calculate_position(value: f32, max: i32) i32 {
-    const half: f32 = @as(f32, @floatFromInt(max)) / 2.0;
-    const pos = value * half;
-    return @intFromFloat(@round(pos));
-}
-
-fn apply_offset(value: i32, offset: i32, size: i32) i32 {
-    return value + (offset - @divFloor(size, 2));
 }
 
 fn is_within_bounds(value: i32, upper_limit: i32) bool {
