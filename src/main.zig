@@ -90,15 +90,13 @@ const Shape = struct {
 
     pub fn next(self: *Shape) ?Vec2f {
         return switch (self.primitive) {
-            .line => |*line| line.next(),
-            .circle => |*circle| circle.next(),
+            inline else => |*primitive| primitive.next(),
         };
     }
 
     pub fn reset(self: *Shape) void {
         switch (self.primitive) {
-            .line => |*line| line.reset(),
-            .circle => |*circle| circle.reset(),
+            inline else => |*primitive| primitive.reset(),
         }
     }
 
