@@ -18,10 +18,7 @@ pub fn main(_: std.process.Init) !void {
     circle(&output, 40, output_y / 2, output_x / 2);
 
     for (&output) |*y| {
-        for (y) |x| {
-            std.debug.print("{c}", .{x});
-        }
-        std.debug.print("\n", .{});
+        std.debug.print("{s}\n", .{y});
     }
 }
 
