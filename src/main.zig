@@ -35,6 +35,10 @@ const Circle = struct {
 
         return Vec2f{ .y = y, .x = x };
     }
+
+    pub fn size(self: *Circle) f32 {
+        return @as(f32, @floatFromInt(self.radius)) * 2.0;
+    }
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -55,9 +59,9 @@ pub fn main(init: std.process.Init) !void {
     _ = try output.addManyAt(allocator, 0, winsize.row * winsize.col);
     @memset(output.items[0 .. winsize.row * winsize.col], SPACE);
 
-    const circleVec: Vec2f = .{ .y = 0.5, .x = 0.5 };
-    var circlePos: Vec2f = .{ .y = 0.0, .x = 0.0 };
-    const velocity = 0.5;
+    var circleVec: Vec2f = .{ .y = 0.5, .x = 0.5 };
+    var circlePos: Vec2f = .{ .y = @as(f32, @floatFromInt(winsize.row)) / 2.0, .x = @as(f32, @floatFromInt(winsize.col)) / 2.0 };
+    const velocity = 1.5;
     while (true) {
         try writer.interface.writeAll("\x1b[H");
 
@@ -80,11 +84,12 @@ pub fn main(init: std.process.Init) !void {
 
         circlePos.x += circleVec.x * velocity;
         circlePos.y += circleVec.y * velocity;
-        if (@as(i32, @intFromFloat(circlePos.x)) >= circle.radius * 2 + drawSize.x) {
-            circlePos.x = @as(f32, @floatFromInt(-circle.radius * 2));
+
+        if (@as(i32, @intFromFloat(circlePos.x + circle.size())) >= drawSize.x or @as(i32, @intFromFloat(circlePos.x - circle.size())) <= 0) {
+            circleVec.x = -circleVec.x;
         }
-        if (@as(i32, @intFromFloat(circlePos.y)) >= circle.radius + drawSize.y) {
-            circlePos.y = @as(f32, @floatFromInt(-circle.radius * 2));
+        if (@as(i32, @intFromFloat(circlePos.y + @as(f32, @floatFromInt(circle.radius)))) >= winsize.row or @as(i32, @intFromFloat(circlePos.y - @as(f32, @floatFromInt(circle.radius)))) <= 0) {
+            circleVec.y = -circleVec.y;
         }
 
         try writer.interface.flush();
