@@ -144,7 +144,7 @@ pub fn main(init: std.process.Init) !void {
     var line: Shape = .{
         .primitive = .{ .line = .{
             .x = 0.0,
-            .length = 20.0,
+            .length = 10.0,
         } },
         .pos = .{
             .y = world_size.y / 2.0,
@@ -154,16 +154,29 @@ pub fn main(init: std.process.Init) !void {
         .rotation = 0.0,
     };
 
-    const velocity: f32 = 0.1;
+    var line_vec: Vec2f = .{
+        .y = 0.5,
+        .x = 0.25,
+    };
+
+    const velocity: f32 = 0.2;
     while (true) {
         circle.pos.x += circle_vec.x * velocity;
         circle.pos.y += circle_vec.y * velocity;
+        line.pos.x += line_vec.x * velocity;
+        line.pos.y += line_vec.y * velocity;
 
         if (circle.pos.x + circle.size() / 2.0 >= world_size.x or circle.pos.x - circle.size() / 2.0 <= 0) {
             circle_vec.x = -circle_vec.x;
         }
         if (circle.pos.y + circle.size() / 2.0 >= world_size.y or circle.pos.y - circle.size() / 2.0 <= 0) {
             circle_vec.y = -circle_vec.y;
+        }
+        if (line.pos.x + line.size() / 2.0 >= world_size.x or line.pos.x - line.size() / 2.0 <= 0) {
+            line_vec.x = -line_vec.x;
+        }
+        if (line.pos.y + line.size() / 2.0 >= world_size.y or line.pos.y - line.size() / 2.0 <= 0) {
+            line_vec.y = -line_vec.y;
         }
 
         line.rotation += 0.05;
