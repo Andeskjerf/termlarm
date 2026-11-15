@@ -139,19 +139,19 @@ pub fn main(init: std.process.Init) !void {
         .x = 0.5,
     };
 
-    var line: Shape = .{
-        .primitive = .{ .line = .{
-            .x = 0.0,
-            .length = 20.0,
-        } },
-        .pos = .{
-            .y = world_size.y / 2.0,
-            .x = world_size.x / 2.0,
-        },
-        .scale = 1.0,
-    };
+    // var line: Shape = .{
+    //     .primitive = .{ .line = .{
+    //         .x = 0.0,
+    //         .length = 20.0,
+    //     } },
+    //     .pos = .{
+    //         .y = world_size.y / 2.0,
+    //         .x = world_size.x / 2.0,
+    //     },
+    //     .scale = 1.0,
+    // };
 
-    const velocity = 0.5;
+    const velocity = 2.25;
     while (true) {
         circle.pos.x += circle_vec.x * velocity;
         circle.pos.y += circle_vec.y * velocity;
@@ -163,7 +163,7 @@ pub fn main(init: std.process.Init) !void {
             circle_vec.y = -circle_vec.y;
         }
 
-        drawShapeOntoBuffer(&line, output.items, win_size);
+        // drawShapeOntoBuffer(&line, output.items, win_size);
         drawShapeOntoBuffer(&circle, output.items, win_size);
         try drawBufferToStdout(&writer, output.items, win_size);
 
@@ -171,30 +171,30 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-fn bresenham(buffer: []?Vec2i, start: Vec2i, end: Vec2i) void {
+fn bresenham(start: Vec2i, end: Vec2i, current_point: *Vec2i, err: *?i32) ?Vec2i {
     const dx: i32 = @intCast(@abs(end.x - start.x));
     const dy: i32 = -@as(i32, @intCast(@abs(end.y - start.y)));
     const sx: i32 = if (start.x < end.x) 1 else -1;
     const sy: i32 = if (start.y < end.y) 1 else -1;
-    var err = dx + dy;
 
-    var x = start.x;
-    var y = start.y;
-    var i: usize = 0;
-    while (i < buffer.len) : (i += 1) {
-        buffer[i] = .{ .y = y, .x = x };
-        if (x == end.x and y == end.y) break;
-
-        const e2 = 2 * err;
-        if (e2 >= dy) {
-            err += dy;
-            x += sx;
-        }
-        if (e2 <= dx) {
-            err += dx;
-            y += sy;
-        }
+    if (err.* == null) {
+        err.* = dx + dy;
     }
+
+    const rasterized_point: Vec2i = .{ .y = current_point.y, .x = current_point.x };
+    if (current_point.x == end.x and current_point.y == end.y) return null;
+
+    const e2 = 2 * err.*.?;
+    if (e2 >= dy) {
+        err.*.? += dy;
+        current_point.x += sx;
+    }
+    if (e2 <= dx) {
+        err.*.? += dx;
+        current_point.y += sy;
+    }
+
+    return rasterized_point;
 }
 
 fn isWithinBounds(value: i32, upper_limit: i32) bool {
@@ -207,7 +207,6 @@ fn isWithinBounds(value: i32, upper_limit: i32) bool {
 // 3. rasterize into array of points
 // 4. transfer rasterization onto draw buffer
 fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
-    var rasterized_points: [128]?Vec2i = @splat(null);
     var i: usize = 0;
     var first_point: Vec2f = undefined;
     var prev_point: Vec2f = undefined;
@@ -227,16 +226,16 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
             .x = @as(i32, @intFromFloat(@round(s.x * 2.0 + shape.pos.x * 2.0))),
         };
 
-        // TODO: we could probably draw the rasterized points directly to the output buffer
-        // .next() pattern here as well?
-        bresenham(&rasterized_points, p1, p2);
-        for (rasterized_points) |rp| {
-            const rpp = rp orelse break;
-            if (isWithinBounds(rpp.y, winsize.row) and isWithinBounds(rpp.x, winsize.col))
-                buffer[@as(usize, @intCast(rpp.y * winsize.col + rpp.x))] = NUMBER_SIGN;
+        var err: ?i32 = null;
+        var current_point: Vec2i = .{
+            .x = p1.x,
+            .y = p1.y,
+        };
+        while (bresenham(p1, p2, &current_point, &err)) |rp| {
+            if (isWithinBounds(rp.y, winsize.row) and isWithinBounds(rp.x, winsize.col))
+                buffer[@as(usize, @intCast(rp.y * winsize.col + rp.x))] = NUMBER_SIGN;
         }
 
-        @memset(&rasterized_points, null);
         prev_point = s;
     }
 
@@ -251,11 +250,14 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
         .x = @as(i32, @intFromFloat(@round(first_point.x * 2.0 + shape.pos.x * 2.0))),
     };
 
-    bresenham(&rasterized_points, p1, p2);
-    for (rasterized_points) |rp| {
-        const rpp = rp orelse break;
-        if (isWithinBounds(rpp.y, winsize.row) and isWithinBounds(rpp.x, winsize.col))
-            buffer[@as(usize, @intCast(rpp.y * winsize.col + rpp.x))] = NUMBER_SIGN;
+    var err: ?i32 = null;
+    var current_point: Vec2i = .{
+        .x = p1.x,
+        .y = p1.y,
+    };
+    while (bresenham(p1, p2, &current_point, &err)) |rp| {
+        if (isWithinBounds(rp.y, winsize.row) and isWithinBounds(rp.x, winsize.col))
+            buffer[@as(usize, @intCast(rp.y * winsize.col + rp.x))] = NUMBER_SIGN;
     }
     shape.reset();
 }
