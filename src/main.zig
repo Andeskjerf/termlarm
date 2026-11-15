@@ -223,7 +223,7 @@ fn rasterizeOntoBuffer(buffer: []u8, p1: Vec2i, p2: Vec2i, winsize: std.posix.wi
 // order of operations:
 // 1. calculate points of primitive
 // 2. do any transformations to these points
-// 3. rasterize into array of points
+// 3. rasterize into points to be drawn onto screen
 // 4. transfer rasterization onto draw buffer
 fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
     var i: usize = 0;
