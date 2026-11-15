@@ -92,10 +92,10 @@ const Letter = struct {
 
         for (self.points) |p| {
             const pp = p orelse break;
-            if (pp.x > low_x) low_x = pp.x;
-            if (pp.x < high_x) high_x = pp.x;
-            if (pp.y > low_y) low_y = pp.y;
-            if (pp.y < high_y) high_y = pp.y;
+            if (pp.x > high_x) high_x = pp.x;
+            if (pp.x < low_x) low_x = pp.x;
+            if (pp.y > high_y) high_y = pp.y;
+            if (pp.y < low_y) low_y = pp.y;
         }
 
         return Vec2f{
@@ -141,7 +141,7 @@ const Shape = struct {
 
     pub fn size(self: *Shape) Vec2f {
         return switch (self.primitive) {
-            .line => |*line| Vec2f{ .x = 1.0, .y = line.length },
+            .line => |*line| Vec2f{ .x = line.length, .y = 1.0 },
             inline else => |*primitive| primitive.size(),
         };
     }
