@@ -39,8 +39,11 @@ const Circle = struct {
         };
     }
 
-    pub fn size(self: *Circle) f32 {
-        return self.radius * 2.0;
+    pub fn size(self: *Circle) Vec2f {
+        return Vec2f{
+            .x = self.radius * 2.0,
+            .y = self.radius * 2.0,
+        };
     }
 
     pub fn reset(self: *Circle) void {
@@ -67,14 +70,55 @@ const Line = struct {
     }
 };
 
+const Letter = struct {
+    points: [8]?Vec2f,
+    step: usize,
+
+    pub fn next(self: *Letter) ?Vec2f {
+        if (self.step >= self.points.len) return null;
+        const p = self.points[self.step] orelse return null;
+        self.step += 1;
+        return .{
+            .x = p.x,
+            .y = p.y,
+        };
+    }
+
+    pub fn size(self: *Letter) Vec2f {
+        var low_x: f32 = 0;
+        var high_x: f32 = 0;
+        var low_y: f32 = 0;
+        var high_y: f32 = 0;
+
+        for (self.points) |p| {
+            const pp = p orelse break;
+            if (pp.x > low_x) low_x = pp.x;
+            if (pp.x < high_x) high_x = pp.x;
+            if (pp.y > low_y) low_y = pp.y;
+            if (pp.y < high_y) high_y = pp.y;
+        }
+
+        return Vec2f{
+            .x = high_x - low_x,
+            .y = high_y - low_y,
+        };
+    }
+
+    pub fn reset(self: *Letter) void {
+        self.step = 0;
+    }
+};
+
 const PrimitiveTag = enum {
     line,
     circle,
+    letter,
 };
 
 const Primitive = union(PrimitiveTag) {
     line: Line,
     circle: Circle,
+    letter: Letter,
 };
 
 const Shape = struct {
@@ -95,10 +139,10 @@ const Shape = struct {
         }
     }
 
-    pub fn size(self: *Shape) f32 {
+    pub fn size(self: *Shape) Vec2f {
         return switch (self.primitive) {
-            .line => |*line| line.length,
-            .circle => |*circle| circle.size(),
+            .line => |*line| Vec2f{ .x = 1.0, .y = line.length },
+            inline else => |*primitive| primitive.size(),
         };
     }
 };
@@ -166,16 +210,16 @@ pub fn main(init: std.process.Init) !void {
         line.pos.x += line_vec.x * velocity;
         line.pos.y += line_vec.y * velocity;
 
-        if (circle.pos.x + circle.size() / 2.0 >= world_size.x or circle.pos.x - circle.size() / 2.0 <= 0) {
+        if (circle.pos.x + circle.size().x / 2.0 >= world_size.x or circle.pos.x - circle.size().x / 2.0 <= 0) {
             circle_vec.x = -circle_vec.x;
         }
-        if (circle.pos.y + circle.size() / 2.0 >= world_size.y or circle.pos.y - circle.size() / 2.0 <= 0) {
+        if (circle.pos.y + circle.size().y / 2.0 >= world_size.y or circle.pos.y - circle.size().y / 2.0 <= 0) {
             circle_vec.y = -circle_vec.y;
         }
-        if (line.pos.x + line.size() / 2.0 >= world_size.x or line.pos.x - line.size() / 2.0 <= 0) {
+        if (line.pos.x + line.size().x / 2.0 >= world_size.x or line.pos.x - line.size().x / 2.0 <= 0) {
             line_vec.x = -line_vec.x;
         }
-        if (line.pos.y + line.size() / 2.0 >= world_size.y or line.pos.y - line.size() / 2.0 <= 0) {
+        if (line.pos.y + line.size().y / 2.0 >= world_size.y or line.pos.y - line.size().y / 2.0 <= 0) {
             line_vec.y = -line_vec.y;
         }
 
@@ -219,6 +263,7 @@ fn isWithinBounds(value: i32, upper_limit: i32) bool {
     return value < upper_limit and value >= 0;
 }
 
+// TODO: this could be a linear transformation too
 fn worldToScreenVec2i(world_pos: Vec2f, shape_pos: Vec2f) Vec2i {
     return .{
         .y = @as(i32, @intFromFloat(@round(world_pos.y + shape_pos.y))),
