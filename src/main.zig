@@ -139,17 +139,17 @@ pub fn main(init: std.process.Init) !void {
         .x = 0.5,
     };
 
-    // var line: Shape = .{
-    //     .primitive = .{ .line = .{
-    //         .x = 0.0,
-    //         .length = 20.0,
-    //     } },
-    //     .pos = .{
-    //         .y = world_size.y / 2.0,
-    //         .x = world_size.x / 2.0,
-    //     },
-    //     .scale = 1.0,
-    // };
+    var line: Shape = .{
+        .primitive = .{ .line = .{
+            .x = 0.0,
+            .length = 20.0,
+        } },
+        .pos = .{
+            .y = world_size.y / 2.0,
+            .x = world_size.x / 2.0,
+        },
+        .scale = 1.0,
+    };
 
     const velocity = 2.25;
     while (true) {
@@ -163,7 +163,7 @@ pub fn main(init: std.process.Init) !void {
             circle_vec.y = -circle_vec.y;
         }
 
-        // drawShapeOntoBuffer(&line, output.items, win_size);
+        drawShapeOntoBuffer(&line, output.items, win_size);
         drawShapeOntoBuffer(&circle, output.items, win_size);
         try drawBufferToStdout(&writer, output.items, win_size);
 
@@ -201,6 +201,25 @@ fn isWithinBounds(value: i32, upper_limit: i32) bool {
     return value < upper_limit and value >= 0;
 }
 
+fn worldToScreenVec2i(world_pos: Vec2f, shape_pos: Vec2f) Vec2i {
+    return .{
+        .y = @as(i32, @intFromFloat(@round(world_pos.y + shape_pos.y))),
+        .x = @as(i32, @intFromFloat(@round(world_pos.x * 2.0 + shape_pos.x * 2.0))),
+    };
+}
+
+fn rasterizeOntoBuffer(buffer: []u8, p1: Vec2i, p2: Vec2i, winsize: std.posix.winsize) void {
+    var err: ?i32 = null;
+    var current_point: Vec2i = .{
+        .x = p1.x,
+        .y = p1.y,
+    };
+    while (bresenham(p1, p2, &current_point, &err)) |rp| {
+        if (isWithinBounds(rp.y, winsize.row) and isWithinBounds(rp.x, winsize.col))
+            buffer[@as(usize, @intCast(rp.y * winsize.col + rp.x))] = NUMBER_SIGN;
+    }
+}
+
 // order of operations:
 // 1. calculate points of primitive
 // 2. do any transformations to these points
@@ -217,48 +236,19 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
             continue;
         }
 
-        const p1: Vec2i = .{
-            .y = @as(i32, @intFromFloat(@round(prev_point.y + shape.pos.y))),
-            .x = @as(i32, @intFromFloat(@round(prev_point.x * 2.0 + shape.pos.x * 2.0))),
-        };
-        const p2: Vec2i = .{
-            .y = @as(i32, @intFromFloat(@round(s.y + shape.pos.y))),
-            .x = @as(i32, @intFromFloat(@round(s.x * 2.0 + shape.pos.x * 2.0))),
-        };
-
-        var err: ?i32 = null;
-        var current_point: Vec2i = .{
-            .x = p1.x,
-            .y = p1.y,
-        };
-        while (bresenham(p1, p2, &current_point, &err)) |rp| {
-            if (isWithinBounds(rp.y, winsize.row) and isWithinBounds(rp.x, winsize.col))
-                buffer[@as(usize, @intCast(rp.y * winsize.col + rp.x))] = NUMBER_SIGN;
-        }
+        const p1: Vec2i = worldToScreenVec2i(prev_point, shape.pos);
+        const p2: Vec2i = worldToScreenVec2i(s, shape.pos);
+        rasterizeOntoBuffer(buffer, p1, p2, winsize);
 
         prev_point = s;
     }
 
-    // bad...
-    // need to split this up to make it easier to call post-loop
-    const p1: Vec2i = .{
-        .y = @as(i32, @intFromFloat(@round(prev_point.y + shape.pos.y))),
-        .x = @as(i32, @intFromFloat(@round(prev_point.x * 2.0 + shape.pos.x * 2.0))),
-    };
-    const p2: Vec2i = .{
-        .y = @as(i32, @intFromFloat(@round(first_point.y + shape.pos.y))),
-        .x = @as(i32, @intFromFloat(@round(first_point.x * 2.0 + shape.pos.x * 2.0))),
-    };
+    // need to do one last time to connect last point to first point
+    // hmm, not really relevant for a line, but whatever!
+    const p1: Vec2i = worldToScreenVec2i(prev_point, shape.pos);
+    const p2: Vec2i = worldToScreenVec2i(first_point, shape.pos);
+    rasterizeOntoBuffer(buffer, p1, p2, winsize);
 
-    var err: ?i32 = null;
-    var current_point: Vec2i = .{
-        .x = p1.x,
-        .y = p1.y,
-    };
-    while (bresenham(p1, p2, &current_point, &err)) |rp| {
-        if (isWithinBounds(rp.y, winsize.row) and isWithinBounds(rp.x, winsize.col))
-            buffer[@as(usize, @intCast(rp.y * winsize.col + rp.x))] = NUMBER_SIGN;
-    }
     shape.reset();
 }
 
