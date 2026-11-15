@@ -81,6 +81,7 @@ const Shape = struct {
     primitive: Primitive,
     pos: Vec2f,
     scale: f32,
+    rotation: f32,
 
     pub fn next(self: *Shape) ?Vec2f {
         return switch (self.primitive) {
@@ -132,11 +133,12 @@ pub fn main(init: std.process.Init) !void {
             .x = world_size.x / 2.0,
         },
         .scale = 1.0,
+        .rotation = 0.0,
     };
 
     var circle_vec: Vec2f = .{
-        .y = 0.5,
-        .x = 0.5,
+        .y = 1.0,
+        .x = 0.0,
     };
 
     var line: Shape = .{
@@ -149,9 +151,10 @@ pub fn main(init: std.process.Init) !void {
             .x = world_size.x / 2.0,
         },
         .scale = 1.0,
+        .rotation = 0.0,
     };
 
-    const velocity = 2.25;
+    const velocity: f32 = 0.1;
     while (true) {
         circle.pos.x += circle_vec.x * velocity;
         circle.pos.y += circle_vec.y * velocity;
@@ -162,6 +165,8 @@ pub fn main(init: std.process.Init) !void {
         if (circle.pos.y + circle.size() / 2.0 >= world_size.y or circle.pos.y - circle.size() / 2.0 <= 0) {
             circle_vec.y = -circle_vec.y;
         }
+
+        line.rotation += 0.05;
 
         drawShapeOntoBuffer(&line, output.items, win_size);
         drawShapeOntoBuffer(&circle, output.items, win_size);
@@ -208,6 +213,18 @@ fn worldToScreenVec2i(world_pos: Vec2f, shape_pos: Vec2f) Vec2i {
     };
 }
 
+fn rotate(radi: f32, pos: Vec2f) Vec2f {
+    const matrix = [2][2]f32{
+        [_]f32{ @cos(radi), -@sin(radi) },
+        [_]f32{ @sin(radi), @cos(radi) },
+    };
+
+    return .{
+        .x = matrix[0][0] * pos.x + matrix[0][1] * pos.y,
+        .y = matrix[1][0] * pos.x + matrix[1][1] * pos.y,
+    };
+}
+
 fn rasterizeOntoBuffer(buffer: []u8, p1: Vec2i, p2: Vec2i, winsize: std.posix.winsize) void {
     var err: ?i32 = null;
     var current_point: Vec2i = .{
@@ -236,18 +253,18 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
             continue;
         }
 
-        const p1: Vec2i = worldToScreenVec2i(prev_point, shape.pos);
-        const p2: Vec2i = worldToScreenVec2i(s, shape.pos);
-        rasterizeOntoBuffer(buffer, p1, p2, winsize);
+        const p1 = rotate(shape.rotation, prev_point);
+        const p2 = rotate(shape.rotation, s);
+        rasterizeOntoBuffer(buffer, worldToScreenVec2i(p1, shape.pos), worldToScreenVec2i(p2, shape.pos), winsize);
 
         prev_point = s;
     }
 
     // need to do one last time to connect last point to first point
     // hmm, not really relevant for a line, but whatever!
-    const p1: Vec2i = worldToScreenVec2i(prev_point, shape.pos);
-    const p2: Vec2i = worldToScreenVec2i(first_point, shape.pos);
-    rasterizeOntoBuffer(buffer, p1, p2, winsize);
+    const p1 = rotate(shape.rotation, prev_point);
+    const p2 = rotate(shape.rotation, first_point);
+    rasterizeOntoBuffer(buffer, worldToScreenVec2i(p1, shape.pos), worldToScreenVec2i(p2, shape.pos), winsize);
 
     shape.reset();
 }
