@@ -63,12 +63,12 @@ const Line = struct {
 };
 
 const Letter = struct {
-    points: [8]?math.Vec2f,
+    points: []const math.Vec2f,
     step: usize,
 
     pub fn next(self: *Letter) ?math.Vec2f {
         if (self.step >= self.points.len) return null;
-        const p = self.points[self.step] orelse return null;
+        const p = self.points[self.step];
         self.step += 1;
         return .{
             .x = p.x,
@@ -83,11 +83,10 @@ const Letter = struct {
         var high_y: f32 = 0;
 
         for (self.points) |p| {
-            const pp = p orelse break;
-            if (pp.x > high_x) high_x = pp.x;
-            if (pp.x < low_x) low_x = pp.x;
-            if (pp.y > high_y) high_y = pp.y;
-            if (pp.y < low_y) low_y = pp.y;
+            if (p.x > high_x) high_x = p.x;
+            if (p.x < low_x) low_x = p.x;
+            if (p.y > high_y) high_y = p.y;
+            if (p.y < low_y) low_y = p.y;
         }
 
         return math.Vec2f{
@@ -100,6 +99,13 @@ const Letter = struct {
         self.step = 0;
     }
 };
+
+fn LetterFactory(letter: []const math.Vec2f) Letter {
+    return .{
+        .points = letter,
+        .step = 0,
+    };
+}
 
 const PrimitiveTag = enum {
     line,
@@ -203,6 +209,16 @@ pub fn main(init: std.process.Init) !void {
         .x = 0.25,
     };
 
+    var seven: Shape = .{
+        .primitive = .{ .letter = LetterFactory(&digits.THREE) },
+        .pos = .{
+            .y = world_size.y / 2.0,
+            .x = world_size.x / 2.0,
+        },
+        .scale = 2.0,
+        .rotation = 0.0,
+    };
+
     const velocity: f32 = 0.2;
     while (true) {
         circle.pos.x += circle_vec.x * velocity;
@@ -225,6 +241,7 @@ pub fn main(init: std.process.Init) !void {
 
         line.rotation += 0.05;
 
+        drawShapeOntoBuffer(&seven, output.items, win_size);
         drawShapeOntoBuffer(&line, output.items, win_size);
         drawShapeOntoBuffer(&circle, output.items, win_size);
         try drawBufferToStdout(&writer, output.items, win_size);
