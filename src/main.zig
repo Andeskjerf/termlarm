@@ -1,4 +1,5 @@
 const std = @import("std");
+const math = @import("math.zig");
 
 const termlarm = @import("termlarm");
 
@@ -10,21 +11,11 @@ const MAX_DEGREES = 360;
 const SPACE = 32;
 const NUMBER_SIGN = 35;
 
-const Vec2i = struct {
-    y: i32,
-    x: i32,
-};
-
-const Vec2f = struct {
-    y: f32,
-    x: f32,
-};
-
 const Circle = struct {
     radius: f32,
     step: i32,
 
-    pub fn next(self: *Circle) ?Vec2f {
+    pub fn next(self: *Circle) ?math.Vec2f {
         const target_step = 12;
         if (self.step >= target_step) return null;
 
@@ -33,14 +24,14 @@ const Circle = struct {
         const x = std.math.sin(radi) * self.radius;
         self.step += 1;
 
-        return Vec2f{
+        return math.Vec2f{
             .y = y,
             .x = x,
         };
     }
 
-    pub fn size(self: *Circle) Vec2f {
-        return Vec2f{
+    pub fn size(self: *Circle) math.Vec2f {
+        return math.Vec2f{
             .x = self.radius * 2.0,
             .y = self.radius * 2.0,
         };
@@ -55,7 +46,7 @@ const Line = struct {
     x: f32,
     length: f32,
 
-    pub fn next(self: *Line) ?Vec2f {
+    pub fn next(self: *Line) ?math.Vec2f {
         if (self.x > self.length) return null;
         const x = self.x - self.length / 2.0;
         self.x += self.length;
@@ -71,10 +62,10 @@ const Line = struct {
 };
 
 const Letter = struct {
-    points: [8]?Vec2f,
+    points: [8]?math.Vec2f,
     step: usize,
 
-    pub fn next(self: *Letter) ?Vec2f {
+    pub fn next(self: *Letter) ?math.Vec2f {
         if (self.step >= self.points.len) return null;
         const p = self.points[self.step] orelse return null;
         self.step += 1;
@@ -84,7 +75,7 @@ const Letter = struct {
         };
     }
 
-    pub fn size(self: *Letter) Vec2f {
+    pub fn size(self: *Letter) math.Vec2f {
         var low_x: f32 = 0;
         var high_x: f32 = 0;
         var low_y: f32 = 0;
@@ -98,7 +89,7 @@ const Letter = struct {
             if (pp.y < low_y) low_y = pp.y;
         }
 
-        return Vec2f{
+        return math.Vec2f{
             .x = high_x - low_x,
             .y = high_y - low_y,
         };
@@ -123,11 +114,11 @@ const Primitive = union(PrimitiveTag) {
 
 const Shape = struct {
     primitive: Primitive,
-    pos: Vec2f,
+    pos: math.Vec2f,
     scale: f32,
     rotation: f32,
 
-    pub fn next(self: *Shape) ?Vec2f {
+    pub fn next(self: *Shape) ?math.Vec2f {
         return switch (self.primitive) {
             inline else => |*primitive| primitive.next(),
         };
@@ -139,9 +130,9 @@ const Shape = struct {
         }
     }
 
-    pub fn size(self: *Shape) Vec2f {
+    pub fn size(self: *Shape) math.Vec2f {
         return switch (self.primitive) {
-            .line => |*line| Vec2f{ .x = line.length, .y = 1.0 },
+            .line => |*line| math.Vec2f{ .x = line.length, .y = 1.0 },
             inline else => |*primitive| primitive.size(),
         };
     }
@@ -158,7 +149,7 @@ pub fn main(init: std.process.Init) !void {
     var writer = stdout.writer(io, out_buffer);
 
     const win_size: std.posix.winsize = getTermSize();
-    const world_size: Vec2f = .{
+    const world_size: math.Vec2f = .{
         .y = win_size.row,
         .x = @as(f32, @floatFromInt(win_size.col)) / 2.0,
     };
@@ -180,7 +171,7 @@ pub fn main(init: std.process.Init) !void {
         .rotation = 0.0,
     };
 
-    var circle_vec: Vec2f = .{
+    var circle_vec: math.Vec2f = .{
         .y = 1.0,
         .x = 0.0,
     };
@@ -198,7 +189,7 @@ pub fn main(init: std.process.Init) !void {
         .rotation = 0.0,
     };
 
-    var line_vec: Vec2f = .{
+    var line_vec: math.Vec2f = .{
         .y = 0.5,
         .x = 0.25,
     };
@@ -233,7 +224,7 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
-fn bresenham(start: Vec2i, end: Vec2i, current_point: *Vec2i, err: *?i32) ?Vec2i {
+fn bresenham(start: math.Vec2i, end: math.Vec2i, current_point: *math.Vec2i, err: *?i32) ?math.Vec2i {
     const dx: i32 = @intCast(@abs(end.x - start.x));
     const dy: i32 = -@as(i32, @intCast(@abs(end.y - start.y)));
     const sx: i32 = if (start.x < end.x) 1 else -1;
@@ -243,7 +234,7 @@ fn bresenham(start: Vec2i, end: Vec2i, current_point: *Vec2i, err: *?i32) ?Vec2i
         err.* = dx + dy;
     }
 
-    const rasterized_point: Vec2i = .{ .y = current_point.y, .x = current_point.x };
+    const rasterized_point: math.Vec2i = .{ .y = current_point.y, .x = current_point.x };
     if (current_point.x == end.x and current_point.y == end.y) return null;
 
     const e2 = 2 * err.*.?;
@@ -264,14 +255,14 @@ fn isWithinBounds(value: i32, upper_limit: i32) bool {
 }
 
 // TODO: this could be a linear transformation too
-fn worldToScreenVec2i(world_pos: Vec2f, shape_pos: Vec2f) Vec2i {
+fn worldToScreenVec2i(world_pos: math.Vec2f, shape_pos: math.Vec2f) math.Vec2i {
     return .{
         .y = @as(i32, @intFromFloat(@round(world_pos.y + shape_pos.y))),
         .x = @as(i32, @intFromFloat(@round(world_pos.x * 2.0 + shape_pos.x * 2.0))),
     };
 }
 
-fn rotate(radi: f32, pos: Vec2f) Vec2f {
+fn rotate(radi: f32, pos: math.Vec2f) math.Vec2f {
     const matrix = [2][2]f32{
         [_]f32{ @cos(radi), -@sin(radi) },
         [_]f32{ @sin(radi), @cos(radi) },
@@ -283,9 +274,9 @@ fn rotate(radi: f32, pos: Vec2f) Vec2f {
     };
 }
 
-fn rasterizeOntoBuffer(buffer: []u8, p1: Vec2i, p2: Vec2i, winsize: std.posix.winsize) void {
+fn rasterizeOntoBuffer(buffer: []u8, p1: math.Vec2i, p2: math.Vec2i, winsize: std.posix.winsize) void {
     var err: ?i32 = null;
-    var current_point: Vec2i = .{
+    var current_point: math.Vec2i = .{
         .x = p1.x,
         .y = p1.y,
     };
@@ -302,8 +293,8 @@ fn rasterizeOntoBuffer(buffer: []u8, p1: Vec2i, p2: Vec2i, winsize: std.posix.wi
 // 4. transfer rasterization onto draw buffer
 fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) void {
     var i: usize = 0;
-    var first_point: Vec2f = undefined;
-    var prev_point: Vec2f = undefined;
+    var first_point: math.Vec2f = undefined;
+    var prev_point: math.Vec2f = undefined;
     while (shape.next()) |s| : (i += 1) {
         if (i == 0) {
             first_point = s;
