@@ -300,6 +300,19 @@ fn rotate(radi: f32, pos: math.Vec2f) math.Vec2f {
     };
 }
 
+// FIXME: do matrix multiplication to merge transformations
+fn scale(by: f32, pos: math.Vec2f) math.Vec2f {
+    const matrix = [2][2]f32{
+        [_]f32{ by, 0.0 },
+        [_]f32{ 0.0, by },
+    };
+
+    return .{
+        .x = matrix[0][0] * pos.x + matrix[0][1] * pos.y,
+        .y = matrix[1][0] * pos.x + matrix[1][1] * pos.y,
+    };
+}
+
 fn rasterizeOntoBuffer(buffer: []u8, p1: math.Vec2i, p2: math.Vec2i, winsize: std.posix.winsize) void {
     var err: ?i32 = null;
     var current_point: math.Vec2i = .{
@@ -328,8 +341,8 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
             continue;
         }
 
-        const p1 = rotate(shape.rotation, prev_point);
-        const p2 = rotate(shape.rotation, s);
+        const p1 = rotate(shape.rotation, scale(shape.scale, prev_point));
+        const p2 = rotate(shape.rotation, scale(shape.scale, s));
         rasterizeOntoBuffer(buffer, worldToScreenVec2i(p1, shape.pos), worldToScreenVec2i(p2, shape.pos), winsize);
 
         prev_point = s;
@@ -338,8 +351,8 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
     if (shape.isClosedPrimitive()) {
         // need to do one last time to connect last point to first point
         // hmm, not really relevant for a line, but whatever!
-        const p1 = rotate(shape.rotation, prev_point);
-        const p2 = rotate(shape.rotation, first_point);
+        const p1 = rotate(shape.rotation, scale(shape.scale, prev_point));
+        const p2 = rotate(shape.rotation, scale(shape.scale, first_point));
         rasterizeOntoBuffer(buffer, worldToScreenVec2i(p1, shape.pos), worldToScreenVec2i(p2, shape.pos), winsize);
     }
 
