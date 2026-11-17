@@ -1,5 +1,6 @@
 const std = @import("std");
 const math = @import("math.zig");
+const digits = @import("digits.zig");
 
 const termlarm = @import("termlarm");
 
@@ -134,6 +135,14 @@ const Shape = struct {
         return switch (self.primitive) {
             .line => |*line| math.Vec2f{ .x = line.length, .y = 1.0 },
             inline else => |*primitive| primitive.size(),
+        };
+    }
+
+    // if the primitive is connected at the start & end point
+    pub fn isClosedPrimitive(self: *Shape) bool {
+        return switch (self.primitive) {
+            .letter => false,
+            inline else => true,
         };
     }
 };
@@ -309,11 +318,13 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
         prev_point = s;
     }
 
-    // need to do one last time to connect last point to first point
-    // hmm, not really relevant for a line, but whatever!
-    const p1 = rotate(shape.rotation, prev_point);
-    const p2 = rotate(shape.rotation, first_point);
-    rasterizeOntoBuffer(buffer, worldToScreenVec2i(p1, shape.pos), worldToScreenVec2i(p2, shape.pos), winsize);
+    if (shape.isClosedPrimitive()) {
+        // need to do one last time to connect last point to first point
+        // hmm, not really relevant for a line, but whatever!
+        const p1 = rotate(shape.rotation, prev_point);
+        const p2 = rotate(shape.rotation, first_point);
+        rasterizeOntoBuffer(buffer, worldToScreenVec2i(p1, shape.pos), worldToScreenVec2i(p2, shape.pos), winsize);
+    }
 
     shape.reset();
 }
