@@ -209,18 +209,19 @@ pub fn main(init: std.process.Init) !void {
         .x = 0.25,
     };
 
-    var seven: Shape = .{
-        .primitive = .{ .letter = LetterFactory(&digits.THREE) },
-        .pos = .{
-            .y = world_size.y / 2.0,
-            .x = world_size.x / 2.0,
-        },
-        .scale = 2.0,
-        .rotation = 0.0,
+    const timerfd = std.os.linux.timerfd_create(std.os.linux.timerfd_clockid_t.REALTIME, .{});
+    var start_value = std.os.linux.itimerspec{
+        .it_interval = .{ .sec = 0, .nsec = 0 },
+        .it_value = .{ .sec = 10, .nsec = 0 },
     };
+    var current_time: std.os.linux.itimerspec = undefined;
+    _ = std.os.linux.timerfd_gettime(@intCast(timerfd), &current_time);
+    _ = std.os.linux.timerfd_settime(@intCast(timerfd), .{}, &start_value, null);
 
     const velocity: f32 = 0.2;
     while (true) {
+        _ = std.os.linux.timerfd_gettime(@intCast(timerfd), &current_time);
+
         circle.pos.x += circle_vec.x * velocity;
         circle.pos.y += circle_vec.y * velocity;
         line.pos.x += line_vec.x * velocity;
@@ -240,6 +241,16 @@ pub fn main(init: std.process.Init) !void {
         }
 
         line.rotation += 0.05;
+
+        var seven: Shape = .{
+            .primitive = .{ .letter = LetterFactory(digits.Factory(@intCast(current_time.it_value.sec))) },
+            .pos = .{
+                .y = world_size.y / 2.0,
+                .x = world_size.x / 2.0,
+            },
+            .scale = 2.0,
+            .rotation = 0.0,
+        };
 
         drawShapeOntoBuffer(&seven, output.items, win_size);
         drawShapeOntoBuffer(&line, output.items, win_size);
