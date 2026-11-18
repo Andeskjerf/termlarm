@@ -365,7 +365,6 @@ fn drawShapeOntoBuffer(shape: *Shape, buffer: []u8, winsize: std.posix.winsize) 
 
     if (shape.isClosedPrimitive()) {
         // need to do one last time to connect last point to first point
-        // hmm, not really relevant for a line, but whatever!
         const p1 = rotate(shape.rotation, scale(shape.scale, prev_point));
         const p2 = rotate(shape.rotation, scale(shape.scale, first_point));
         rasterizeOntoBuffer(buffer, worldToScreenVec2i(p1, shape.pos), worldToScreenVec2i(p2, shape.pos), winsize);
