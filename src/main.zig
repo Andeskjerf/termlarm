@@ -222,6 +222,10 @@ pub fn main(init: std.process.Init) !void {
     while (true) {
         _ = std.os.linux.timerfd_gettime(@intCast(timerfd), &current_time);
 
+        if (current_time.it_value.sec == 0) {
+            _ = std.os.linux.timerfd_settime(@intCast(timerfd), .{}, &start_value, null);
+        }
+
         circle.pos.x += circle_vec.x * velocity;
         circle.pos.y += circle_vec.y * velocity;
         line.pos.x += line_vec.x * velocity;
